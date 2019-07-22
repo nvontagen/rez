@@ -611,8 +611,8 @@ class FileSystemPackageRepository(PackageRepository):
         if dry_run:
             variant = _create_variant()
         else:
-            with self._lock_package(variant_name, variant_version):
-                variant = _create_variant()
+            #with self._lock_package(variant_name, variant_version):
+            variant = _create_variant()
 
         return variant
 
