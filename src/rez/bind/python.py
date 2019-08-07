@@ -30,7 +30,7 @@ call {python} %*
 
 sh = """\
 #!/usr/bin/env bash
-{python} $*
+{python} "$@"
 """
 
 
