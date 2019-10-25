@@ -16,8 +16,9 @@ The empty version '', and empty version range '', are also handled. The empty
 version is used to denote unversioned objects. The empty version range, also
 known as the 'any' range, is used to refer to any version of an object.
 """
-from rez.vendor.version.util import VersionError, ParseException, _Common, \
-    total_ordering, dedup
+from __future__ import print_function
+from .util import VersionError, ParseException, _Common, \
+    dedup
 import rez.vendor.pyparsing.pyparsing as pp
 from bisect import bisect_left
 import copy
@@ -28,19 +29,32 @@ import re
 re_token = re.compile(r"[a-zA-Z0-9_]+")
 
 
-@total_ordering
 class _Comparable(_Common):
-    def __lt__(self, other):
-        raise NotImplementedError
+    def __gt__(self, other):
+        return not (self < other or self == other)
+
+    def __le__(self, other):
+        return self < other or self == other
+
+    def __ge__(self, other):
+        return not self < other
 
 
-@total_ordering
 class _ReversedComparable(_Common):
     def __init__(self, value):
         self.value = value
 
     def __lt__(self, other):
         return not (self.value < other.value)
+
+    def __gt__(self, other):
+        return not (self < other or self == other)
+
+    def __le__(self, other):
+        return self < other or self == other
+
+    def __ge__(self, other):
+        return not self < other
 
     def __str__(self):
         return "reverse(%s)" % str(self.value)
@@ -124,10 +138,13 @@ class NumericToken(VersionToken):
     def less_than(self, other):
         return (self.n < other.n)
 
-    def next(self):
+    def __next__(self):
         other = copy.copy(self)
         other.n = self.n = 1
         return other
+
+    def next(self):
+        return self.__next__()
 
 
 class _SubToken(_Comparable):
@@ -199,7 +216,7 @@ class AlphanumericVersionToken(VersionToken):
     def less_than(self, other):
         return (self.subtokens < other.subtokens)
 
-    def next(self):
+    def __next__(self):
         other = AlphanumericVersionToken(None)
         other.subtokens = self.subtokens[:]
         subtok = other.subtokens[-1]
@@ -208,6 +225,9 @@ class AlphanumericVersionToken(VersionToken):
         else:
             other.subtokens.append(_SubToken('_'))
         return other
+
+    def next(self):
+        return self.__next__()
 
     @classmethod
     def _parse(cls, s):
@@ -313,7 +333,7 @@ class Version(_Comparable):
         other.seps = self.seps[:len_ - 1]
         return other
 
-    def next(self):
+    def __next__(self):
         """Return 'next' version. Eg, next(1.2) is 1.2_"""
         if self.tokens:
             other = self.copy()
@@ -322,6 +342,9 @@ class Version(_Comparable):
             return other
         else:
             return Version.inf
+
+    def next(self):
+        return self.__next__()
 
     @property
     def major(self):
@@ -360,6 +383,8 @@ class Version(_Comparable):
     def __nonzero__(self):
         """The empty version equates to False."""
         return bool(self.tokens)
+
+    __bool__ = __nonzero__  # py3 compat
 
     def __eq__(self, other):
         return isinstance(other, Version) and self.tokens == other.tokens
@@ -655,10 +680,10 @@ class _VersionRangeParser(object):
             result = fn(self)
             if self.debug:
                 label = fn.__name__.replace("_act_", "")
-                print "%-21s: %s" % (label, self._input_string)
+                print("%-21s: %s" % (label, self._input_string))
                 for key, value in self._groups.items():
-                    print "    %-17s= %s" % (key, value)
-                print "    %-17s= %s" % ("bounds", self.bounds)
+                    print("    %-17s= %s" % (key, value))
+                print("    %-17s= %s" % ("bounds", self.bounds))
             return result
         return fn_
 
@@ -1309,6 +1334,9 @@ class _ContainsVersionIterator(object):
 
     def __iter__(self):
         return self
+
+    def __next__(self):
+        return self.next_fn()
 
     def next(self):
         return self.next_fn()

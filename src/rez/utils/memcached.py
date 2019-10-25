@@ -2,12 +2,16 @@ from __future__ import print_function
 
 from rez.config import config
 from rez.vendor.memcache.memcache import Client as Client_, SERVER_MAX_KEY_LENGTH
+from rez.utils import py23
 from threading import local
 from contextlib import contextmanager
 from functools import update_wrapper
-from inspect import getargspec, isgeneratorfunction
+from inspect import isgeneratorfunction
 from hashlib import md5
 from uuid import uuid4
+from rez.vendor.six import six
+
+basestring = six.string_types[0]
 
 
 # this version should be changed if and when the caching interface changes
@@ -23,7 +27,10 @@ class Client(object):
     - ability to cache None.
     """
     class _Miss(object):
-        def __nonzero__(self): return False
+        def __nonzero__(self):
+            return False
+        __bool__ = __nonzero__  # py3 compat
+
     miss = _Miss()
 
     logger = config.debug_printer("memcache")
@@ -45,6 +52,8 @@ class Client(object):
 
     def __nonzero__(self):
         return bool(self.servers)
+
+    __bool__ = __nonzero__  # py3 compat
 
     @property
     def client(self):
@@ -164,7 +173,7 @@ class Client(object):
 
     @classmethod
     def _key_hash(cls, key):
-        return md5(key).hexdigest()
+        return md5(key.encode("utf-8")).hexdigest()
 
     @classmethod
     def _debug_key_hash(cls, key):
@@ -299,8 +308,8 @@ def memcached(servers, key=None, from_cache=None, to_cache=None, time=0,
     """
     def default_key(func, *nargs, **kwargs):
         parts = [func.__module__]
+        argnames =  py23.get_function_arg_names(func)
 
-        argnames = getargspec(func).args
         if argnames:
             if argnames[0] == "cls":
                 cls_ = nargs[0]

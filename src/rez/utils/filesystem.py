@@ -16,6 +16,9 @@ import shutil
 import os
 import re
 import stat
+import platform
+
+from rez.vendor.six import six
 
 
 class TempDirs(object):
@@ -321,7 +324,7 @@ def copy_or_replace(src, dst):
     '''
     try:
         shutil.copy(src, dst)
-    except (OSError, IOError), e:
+    except (OSError, IOError) as e:
         # It's possible that the file existed, but was owned by someone
         # else - in that situation, shutil.copy might then fail when it
         # tries to copy perms.
@@ -386,18 +389,18 @@ def copytree(src, dst, symlinks=False, ignore=None, hardlinks=False):
             else:
                 copy(srcname, dstname)
         # XXX What about devices, sockets etc.?
-        except (IOError, os.error), why:
+        except (IOError, os.error) as why:
             errors.append((srcname, dstname, str(why)))
         # catch the Error from the recursive copytree so that we can
         # continue with other files
-        except shutil.Error, err:
+        except shutil.Error as err:
             errors.extend(err.args[0])
     try:
         shutil.copystat(src, dst)
     except shutil.WindowsError:
         # can't copy file access times on Windows
         pass
-    except OSError, why:
+    except OSError as why:
         errors.extend((src, dst, str(why)))
     if errors:
         raise shutil.Error(errors)
@@ -476,10 +479,10 @@ def encode_filesystem_name(input_str):
     As an example, the string "Foo_Bar (fun).txt" would get encoded as:
         _foo___bar_020_028fun_029.txt
     """
-    if isinstance(input_str, str):
+    if isinstance(input_str, six.string_types):
         input_str = unicode(input_str)
     elif not isinstance(input_str, unicode):
-        raise TypeError("input_str must be a basestring")
+        raise TypeError("input_str must be a %s" % six.string_types[0].__name__)
 
     as_is = u'abcdefghijklmnopqrstuvwxyz0123456789.-'
     uppercase = u'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
