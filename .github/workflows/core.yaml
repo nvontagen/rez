@@ -4,7 +4,16 @@
 # * Platform dependent.
 #
 name: Core
-on: [push, pull_request]
+on:
+  # Do not run if Docker image has been updated
+  pull_request:
+    paths-ignore:
+      - '.github/docker/**'
+      - '.github/workflows/windows-docker-image.yaml'
+  push:
+    paths-ignore:
+      - '.github/docker/**'
+      - '.github/workflows/windows-docker-image.yaml'
 
 jobs:
   main:
@@ -22,8 +31,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v1
-        with:
-          fetch-depth: 1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1

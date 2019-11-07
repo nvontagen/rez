@@ -1,5 +1,39 @@
 # Change Log
 
+## 2.47.12 (2019-11-06)
+[Source](https://github.com/nerdvegas/rez/tree/2.47.12) | [Diff](https://github.com/nerdvegas/rez/compare/2.47.11...2.47.12)
+
+**Notes**
+
+This release adds a docker-based workflow for the Github Actions Windows test. This was done specifically
+because Github's available Windows runtimes come with an already long %PATH%. Rez adds to PATH and hits
+a limit, causing the `cmd` shell to fail in several tests.
+
+**Merged pull requests:**
+
+- Windows Tests via Docker [\#781](https://github.com/nerdvegas/rez/pull/781) ([bfloch](https://github.com/bfloch))
+
+## 2.47.11 (2019-11-06)
+[Source](https://github.com/nerdvegas/rez/tree/2.47.11) | [Diff](https://github.com/nerdvegas/rez/compare/2.47.10...2.47.11)
+
+**Merged pull requests:**
+
+- Fixes some failing tests on windows [\#775](https://github.com/nerdvegas/rez/pull/775) ([willjp](https://github.com/willjp))
+
+## 2.47.10 (2019-11-06)
+[Source](https://github.com/repos/nerdvegas/rez/tree/2.47.10) | [Diff](https://github.com/repos/nerdvegas/rez/compare/2.47.9...2.47.10)
+
+**Merged pull requests:**
+
+- Replace Popen with check_output to catch errors in installation [\#778](https://github.com/nerdvegas/rez/pull/778) ([instinct-vfx](https://github.com/instinct-vfx))
+- Popen UnicodeDecodeError partial fix [\#779](https://github.com/nerdvegas/rez/pull/779) ([willjp](https://github.com/willjp))
+- Unwanted debug printing [\#780](https://github.com/nerdvegas/rez/pull/780) ([predat](https://github.com/predat))
+
+**Closed issues:**
+
+- rez-release UnicodeDecodeError (windows) [\#776](https://github.com/nerdvegas/rez/issues/776)
+- Errors in pip installation part go unnoticed by rez install.py [\#777](https://github.com/nerdvegas/rez/issues/777)
+
 ## 2.47.9 (2019-10-25)
 [Source](https://github.com/repos/nerdvegas/rez/tree/2.47.9) | [Diff](https://github.com/repos/nerdvegas/rez/compare/2.47.8...2.47.9)
 

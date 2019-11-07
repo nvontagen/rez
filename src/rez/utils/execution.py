@@ -42,7 +42,6 @@ class Popen(_PopenBase):
     Allows for Popen to be used as a context in both py2 and py3.
     """
     def __init__(self, args, **kwargs):
-
         # Avoids python bug described here: https://bugs.python.org/issue3905.
         # This can arise when apps (maya) install a non-standard stdin handler.
         #
@@ -63,9 +62,19 @@ class Popen(_PopenBase):
         # "universal_newlines".
         # https://docs.python.org/3/library/subprocess.html#frequently-used-arguments
         #
-        if "text" in kwargs:
+        text = kwargs.pop("text", None)
+        universal_newlines = kwargs.pop("universal_newlines", None)
+        if text or universal_newlines:
             kwargs["universal_newlines"] = True
-            del kwargs["text"]
+
+        # fixes py3/cmd.exe UnicodeDecodeError() with some characters.
+        #    UnicodeDecodeError: 'charmap' codec can't decode byte
+        #    0x8d in position 1023172: character maps to <undefined>
+        #
+        # NOTE: currently no solution for `python3+<3.6`
+        #
+        if sys.version_info[:2] >= (3, 6) and "encoding" in kwargs:
+            kwargs['encoding'] = 'utf-8'
 
         super(Popen, self).__init__(args, **kwargs)
 
