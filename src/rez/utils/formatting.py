@@ -23,6 +23,13 @@ ENV_VAR_REGEX = re.compile(ENV_VAR_REGSTR)
 FORMAT_VAR_REGSTR = "{(?P<var>.+?)}"
 FORMAT_VAR_REGEX = re.compile(FORMAT_VAR_REGSTR)
 
+# package names that are invalid because they may clash with reserved dir
+# names in some package repos (eg filesystem)
+#
+invalid_package_names = (
+    "__pycache__",
+)
+
 
 def is_valid_package_name(name, raise_error=False):
     """Test the validity of a package name string.
@@ -34,7 +41,11 @@ def is_valid_package_name(name, raise_error=False):
     Returns:
         bool.
     """
-    is_valid = PACKAGE_NAME_REGEX.match(name)
+    is_valid = (
+        PACKAGE_NAME_REGEX.match(name) and
+        name not in invalid_package_names
+    )
+
     if raise_error and not is_valid:
         raise PackageRequestError("Not a valid package name: %r" % name)
     return is_valid
@@ -258,7 +269,7 @@ def dict_to_attributes_code(dict_):
         str.
     """
     lines = []
-    for key, value in dict_.iteritems():
+    for key, value in dict_.items():
         if isinstance(value, dict):
             txt = dict_to_attributes_code(value)
             lines_ = txt.split('\n')
@@ -481,11 +492,35 @@ def as_block_string(txt):
 
     lines = []
     for line in txt.split('\n'):
-        line_ = json.dumps(line)
+        line_ = json.dumps(line, ensure_ascii=False)
         line_ = line_[1:-1].rstrip()  # drop double quotes
         lines.append(line_)
 
     return '"""\n%s\n"""' % '\n'.join(lines)
+
+
+_header_br = '#' * 80
+_header_br_minor = '-' * 80
+
+
+def header_comment(executor, txt):
+    """Convenience for creating header-like comment in a rex executor.
+
+    Args:
+        executor (`RexExecutor`): Executor.
+        txt (str): Comment text.
+    """
+    executor.comment("")
+    executor.comment("")
+    executor.comment(_header_br)
+    executor.comment(txt)
+    executor.comment(_header_br)
+
+
+def minor_header_comment(executor, txt):
+    executor.comment("")
+    executor.comment(txt)
+    executor.comment(_header_br_minor)
 
 
 # Copyright 2013-2016 Allan Johns.

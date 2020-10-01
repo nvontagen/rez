@@ -2,7 +2,7 @@
 In-memory package repository
 """
 from rez.package_repository import PackageRepository
-from rez.package_resources_ import PackageFamilyResource, PackageResource, \
+from rez.package_resources import PackageFamilyResource, PackageResource, \
     VariantResourceHelper, PackageResourceHelper, package_pod_schema
 from rez.exceptions import PackageMetadataError
 from rez.utils.formatting import is_valid_package_name, PackageRequest
@@ -39,7 +39,7 @@ class MemoryPackageFamilyResource(PackageFamilyResource):
             return
 
         # versioned packages
-        for version_str in data.iterkeys():
+        for version_str in data.keys():
             package = self._repository.get_resource(
                 MemoryPackageResource.key,
                 location=self.location,
@@ -174,7 +174,7 @@ class MemoryPackageRepository(PackageRepository):
         return None
 
     def iter_package_families(self):
-        for name in self.data.iterkeys():
+        for name in self.data.keys():
             family = self.get_package_family(name)
             yield family
 

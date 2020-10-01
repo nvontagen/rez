@@ -151,6 +151,24 @@ The order of command execution is:
 * Then, all package *commands* are executed, in standard execution order;
 * Then, all package *post_commands* are executed, in standard execution order.
 
+## Pre Build Commands
+
+If a package is being built, that package's commands are not run, simply because that package is
+not present in its own build environment! However, sometimes there is a need to run commands
+specifically for the package being built. For example, you may wish to set some environment
+variables to pass information along to the build system.
+
+The *pre_build_commands* function does just this. It is called prior to the build. Note that info
+about the current build (such as the installation path) is available in a
+[build](#build) object (other commands functions do not have this object visible).
+
+## Pre Test Commands
+
+Sometimes it's useful to perform some extra configuration in the environment that a package's test
+will run in. You can define the *pre_test_commands* function to do this. It will be invoked just
+before the test is run. As well as the standard [this](#this) object, a [test](#test) object is also
+provided to distinguish which test is about to run.
+
 ## A Largish Example
 
 Here is an example of a package definition with a fairly lengthy *commands* section:
@@ -213,6 +231,36 @@ Create a command alias.
 *String*
 
 See [this.base](#thisbase).
+
+### build
+*Dict-like object*
+
+    if build.install:
+        info("An installation is taking place")
+
+This object is only available in the [pre_build_commands](#pre-build-commands)
+function. It has the following fields:
+
+#### build.build_type
+*String*
+
+One of 'local', 'central'. The type is _central_ if a package _release_ is occurring, and _local_
+otherwise.
+
+#### build.install
+*Boolean*
+
+True if an installation is taking place, False otherwise.
+
+#### build.build_path
+*String*
+
+Path to the build directory (not the installation path). This will typically reside somewhere
+within the `./build` subdirectory of the package being built.
+
+#### build.install_path
+Installation directory. Note that this will be set, even if an installation is _not_ taking place.
+Do not check this variable to detect if an installation is occurring - see `build.install` instead.
 
 ### building
 *Boolean*
@@ -412,6 +460,20 @@ error is detected and it is not possible to configure a valid environment.
 
 This object provided system information, such as current platform, arch and os. See
 [the source](https://github.com/nerdvegas/rez/blob/master/src/rez/system.py) for more info.
+
+### test
+*Dict-like object*
+
+    if test.name == "unit":
+        info("My unit test is about to run yay")
+
+This object is only available in the [pre_test_commands](#pre-test-commands) function. It has the
+following fields:
+
+#### test.name
+*String*
+
+Name of the test about to run.
 
 ### this
 *Package object*

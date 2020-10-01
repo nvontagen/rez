@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from rez.packages_ import iter_packages
+from rez.packages import iter_packages
 from rez.config import config
 from rez.plugin_managers import plugin_manager
 from rez.exceptions import RezError
@@ -47,8 +47,9 @@ def diff_packages(pkg1, pkg2=None):
 
     difftool = config.difftool
     print("Opening diff viewer %s..." % difftool)
-    proc = Popen([difftool] + paths)
-    proc.wait()
+
+    with Popen([difftool] + paths) as p:
+        p.wait()
 
 
 # Copyright 2013-2016 Allan Johns.

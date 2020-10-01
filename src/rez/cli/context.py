@@ -3,14 +3,19 @@ Print information about the current rez context, or a given context file.
 '''
 from __future__ import print_function
 
-# Disable context tracking. Use of rez-context doesn't really indicate usage of
-# the packages in the context; and tracking this causes doubling up, ie most
-# rez-env invocations do a rez-context immediately after. So turning this off
-# cuts down on the amount of data getting tracked, and is more indicative of
-# actual package use.
+# Disable the following:
+# - context tracking
+# - package caching
+#
+# Use of rez-context is't really 'using' the context, so much as inspecting it.
+# Since features such as context tracking are related to context use only, we
+# disable them in this tool.
 #
 import os
-os.environ["REZ_CONTEXT_TRACKING_HOST"] = ''
+os.environ.update({
+    "REZ_CONTEXT_TRACKING_HOST": '',
+    "REZ_WRITE_PACKAGE_CACHE": "False"
+})
 
 import json
 import sys
@@ -34,7 +39,7 @@ def setup_parser(parser, completions=False):
     parser.add_argument(
         "--res", "--print-resolve", dest="print_resolve",
         action="store_true",
-        help="print only the resolve list")
+        help="print only the resolve list. Use with --su to print package URIs")
     parser.add_argument(
         "--so", "--source-order", dest="source_order", action="store_true",
         help="print resolved packages in order they are sorted, rather than "
@@ -96,6 +101,7 @@ def setup_parser(parser, completions=False):
 
 
 def command(opts, parser, extra_arg_groups=None):
+    from rez.cli._util import print_items
     from rez.status import status
     from rez.utils.formatting import columnise, PackageRequest
     from rez.resolved_context import ResolvedContext
@@ -123,9 +129,12 @@ def command(opts, parser, extra_arg_groups=None):
 
     if not opts.interpret:
         if opts.print_request:
-            print(" ".join(str(x) for x in rc.requested_packages(False)))
+            print_items(rc.requested_packages(False))
         elif opts.print_resolve:
-            print(' '.join(x.qualified_package_name for x in rc.resolved_packages))
+            if opts.show_uris:
+                print_items(x.uri for x in rc.resolved_packages)
+            else:
+                print_items(x.qualified_package_name for x in rc.resolved_packages)
         elif opts.tools:
             rc.print_tools()
         elif opts.diff:
@@ -163,7 +172,7 @@ def command(opts, parser, extra_arg_groups=None):
         env = rc.get_environ(parent_environ=parent_env)
 
         if opts.format == 'table':
-            rows = [x for x in sorted(env.iteritems())]
+            rows = [x for x in sorted(env.items())]
             print('\n'.join(columnise(rows)))
         elif opts.format == 'dict':
             print(pformat(env))

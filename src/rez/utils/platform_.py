@@ -5,7 +5,7 @@ import os.path
 import re
 import subprocess
 from rez.util import which
-from rez.utils.system import popen
+from rez.utils.execution import Popen
 from rez.utils.data_utils import cached_property
 from rez.utils.platform_mapped import platform_mapped
 from rez.exceptions import RezSystemError
@@ -105,6 +105,10 @@ class Platform(object):
                         % str(e))
         return 1
 
+    @property
+    def has_case_sensitive_filesystem(self):
+        return True
+
     # -- implementation
 
     def _arch(self):
@@ -178,6 +182,11 @@ class LinuxPlatform(_UnixPlatform):
     name = "linux"
 
     def _os(self):
+        """
+        Note: We cannot replace this with 'distro.linux_distribution' in
+        entirety as unfortunately there are slight differences. Eg our code
+        gives 'Ubuntu-16.04' whereas distro gives 'ubuntu-16.04'.
+        """
         distributor = None
         release = None
 
@@ -222,8 +231,10 @@ class LinuxPlatform(_UnixPlatform):
         # next, try getting the output of the lsb_release program
         import subprocess
 
-        p = popen(['/usr/bin/env', 'lsb_release', '-a'],
-                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = Popen(
+            ['/usr/bin/env', 'lsb_release', '-a'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
         txt = p.communicate()[0]
 
         if not p.returncode:
@@ -259,28 +270,13 @@ class LinuxPlatform(_UnixPlatform):
             if result:
                 return result
 
-        # last, use python's dist detection. It is known to return incorrect
-        # info on some systems though
-        try:
-            distributor_, release_, _ = platform.linux_distribution()
-        except:
-            distributor_, release_, _ = platform.dist()
+        # use distro lib
+        from rez.vendor.distro import distro
 
-        if distributor_ and not distributor:
-            distributor = distributor_
-        if release_ and not release:
-            release = release_
-
-        result = _os()
-        if result:
-            return result
-
-        # last resort, accept missing release
-        if distributor:
-            return distributor
-
-        # give up
-        raise RezSystemError("cannot detect operating system")
+        parts = distro.linux_distribution(full_distribution_name=False)
+        if parts[0] == '':
+            raise RezSystemError("cannot detect operating system")
+        return '-'.join(parts[:2])
 
     def _terminal_emulator_command(self):
         term = which("x-terminal-emulator", "xterm", "konsole")
@@ -366,7 +362,10 @@ class LinuxPlatform(_UnixPlatform):
     def _physical_cores_from_lscpu(self):
         import subprocess
         try:
-            p = popen(['lscpu'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = Popen(
+                ['lscpu'], stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True
+            )
         except (OSError, IOError):
             return None
 
@@ -433,8 +432,11 @@ class OSXPlatform(_UnixPlatform):
     def _physical_cores_from_osx_sysctl(self):
         import subprocess
         try:
-            p = popen(['sysctl', '-n', 'hw.physicalcpu'],
-                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = Popen(
+                ['sysctl', '-n', 'hw.physicalcpu'],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True
+            )
         except (OSError, IOError):
             return None
 
@@ -477,6 +479,10 @@ class WindowsPlatform(Platform):
         final_version = str('.').join(toks)
         return "windows-%s" % final_version
 
+    @property
+    def has_case_sensitive_filesystem(self):
+        return False
+
     def _image_viewer(self):
         # os.system("file.jpg") will open default viewer on windows
         return ''
@@ -518,8 +524,11 @@ class WindowsPlatform(Platform):
         # windows
         import subprocess
         try:
-            p = popen('wmic cpu get NumberOfCores /value'.split(),
-                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = Popen(
+                'wmic cpu get NumberOfCores /value'.split(),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True
+            )
         except (OSError, IOError):
             return None
 

@@ -6,7 +6,7 @@ from rez.tests.util import restore_os_environ, restore_sys_path, TempdirMixin, \
 from rez.resolved_context import ResolvedContext
 from rez.bind import hello_world
 from rez.utils.platform_ import platform_
-import rez.vendor.unittest2 as unittest
+import unittest
 import subprocess
 import os.path
 import os
@@ -49,6 +49,7 @@ class TestContext(TestBase, TempdirMixin):
             r.apply()
             self.assertEqual(os.environ.get("OH_HAI_WORLD"), "hello")
 
+    # TODO make shell-dependent (wait until port to pytest)
     def test_execute_command(self):
         """Test command execution in context."""
         if platform_.name == "windows":
@@ -57,7 +58,7 @@ class TestContext(TestBase, TempdirMixin):
                           " executable.")
 
         r = ResolvedContext(["hello_world"])
-        p = r.execute_command(["hello_world"], stdout=subprocess.PIPE)
+        p = r.execute_command(["hello_world"], stdout=subprocess.PIPE, text=True)
         stdout, _ = p.communicate()
         stdout = stdout.strip()
         self.assertEqual(stdout, "Hello Rez World!")
@@ -77,19 +78,25 @@ class TestContext(TestBase, TempdirMixin):
                               stdout=subprocess.PIPE)
         stdout, _ = p.communicate()
         stdout = stdout.strip()
-        parts = [x.strip() for x in stdout.split('\n')]
+        parts = [x.strip() for x in stdout.decode("utf-8").split('\n')]
 
         self.assertEqual(parts, ["covfefe", "hello"])
 
     def test_serialize(self):
-        """Test save/load of context."""
+        """Test context serlialzation."""
+
         # save
         file = os.path.join(self.root, "test.rxt")
         r = ResolvedContext(["hello_world"])
         r.save(file)
+
         # load
         r2 = ResolvedContext.load(file)
         self.assertEqual(r.resolved_packages, r2.resolved_packages)
+
+        # verify
+        env = r2.get_environ()
+        self.assertEqual(env.get("OH_HAI_WORLD"), "hello")
 
 
 if __name__ == '__main__':

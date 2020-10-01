@@ -7,9 +7,10 @@ import os
 import stat
 import errno
 import time
+import platform
 
 from rez.package_repository import PackageRepository
-from rez.package_resources_ import PackageFamilyResource, VariantResourceHelper, \
+from rez.package_resources import PackageFamilyResource, VariantResourceHelper, \
     PackageResourceHelper, package_pod_schema, \
     package_release_keys, package_build_only_keys
 from rez.serialise import clear_file_caches, open_file_for_write
@@ -20,12 +21,17 @@ from rez.utils.formatting import is_valid_package_name
 from rez.utils.resources import cached_property
 from rez.utils.logging_ import print_warning
 from rez.utils.memcached import memcached, pool_memcached_connections
-from rez.utils.filesystem import make_path_writable
+from rez.utils.filesystem import make_path_writable, canonical_path
+from rez.utils.platform_ import platform_
 from rez.serialise import load_from_file, FileFormat
 from rez.config import config
 from rez.backport.lru_cache import lru_cache
 from rez.vendor.schema.schema import Schema, Optional, And, Use, Or
+from rez.vendor.six import six
 from rez.vendor.version.version import Version, VersionRange
+
+
+basestring = six.string_types[0]
 
 
 debug_print = config.debug_printer("resources")
@@ -147,7 +153,13 @@ class FileSystemPackageResource(PackageResourceHelper):
 
     @property
     def base(self):
-        return self.path
+        # Note: '_redirected_base' is a special attribute set by the build
+        # process in order to perform pre-install/release package testing. See
+        # `LocalBuildProcess._run_tests()`
+        #
+        redirected_base = self._data.get("_redirected_base")
+
+        return redirected_base or self.path
 
     @cached_property
     def path(self):
@@ -371,7 +383,7 @@ class FileSystemCombinedPackageResource(PackageResourceHelper):
 
             overrides = self.parent.version_overrides
             if overrides:
-                for range_, data_ in overrides.iteritems():
+                for range_, data_ in overrides.items():
                     if version in range_:
                         data.update(data_)
                 del data["version_overrides"]
@@ -438,6 +450,7 @@ class FileSystemPackageRepository(PackageRepository):
     """
     schema_dict = {"file_lock_timeout": int,
                    "file_lock_dir": Or(None, str),
+                   "file_lock_type": Or("default", "link", "mkdir"),
                    "package_filenames": [basestring]}
 
     building_prefix = ".building"
@@ -461,6 +474,11 @@ class FileSystemPackageRepository(PackageRepository):
         Args:
             location (str): Path containing the package repository.
         """
+
+        # ensure that differing case doesn't get interpreted as different repos
+        # on case-insensitive platforms (eg windows)
+        location = canonical_path(location, platform_)
+
         super(FileSystemPackageRepository, self).__init__(location, resource_pool)
 
         global _settings
@@ -484,7 +502,7 @@ class FileSystemPackageRepository(PackageRepository):
         t = ["filesystem", self.location]
         if os.path.exists(self.location):
             st = os.stat(self.location)
-            t.append(st.st_ino)
+            t.append(int(st.st_ino))
         return tuple(t)
 
     def get_package_family(self, name):
@@ -516,6 +534,100 @@ class FileSystemPackageRepository(PackageRepository):
 
     def get_last_release_time(self, package_family_resource):
         return package_family_resource.get_last_release_time()
+
+    def get_variant_from_uri(self, uri):
+        """
+        Example URIs:
+        - /svr/packages/mypkg/1.0.0/package.py[1]
+        - /svr/packages/mypkg/1.0.0/package.py[]  ("null" variant)
+        - /svr/packages/mypkg/package.py[1]  (unversioned package - rare)
+        - /svr/packages/mypkg/package.py<1.0.0>[1]  ("combined" package type - rare)
+        """
+        i = uri.rfind('[')
+        if i == -1:
+            return None
+
+        prefix = self.location + os.path.sep
+        if not uri.startswith(prefix):
+            return None
+
+        part1 = uri[len(prefix):i]  # 'mypkg/1.0.0/package.py'
+        part2 = uri[i:][1:-1]  # the '1' in '[1]'
+
+        # find package
+        if '<' in part1:
+            # "combined" package type, like 'mypkg/package.py<1.0.0>'
+            i = part1.find('<')
+            pkg_name = part1.split(os.path.sep)[0]
+            pkg_ver_str = part1[i + 1:-1]
+
+        else:
+            parts = part1.split(os.path.sep)
+            if len(parts) == 3:  # versioned package
+                pkg_name, pkg_ver_str = parts[0], parts[1]
+            elif len(parts) == 2:  # unversioned package
+                pkg_name, pkg_ver_str = parts[0], ''
+            else:
+                return None
+
+        fam = self.get_package_family(pkg_name)
+        if fam is None:
+            return None
+
+        ver = Version(pkg_ver_str)
+        pkg = None
+
+        for package in fam.iter_packages():
+            if package.version == ver:
+                pkg = package
+                break
+
+        if pkg is None:
+            return None
+
+        # find variant in package
+        if part2 == '':
+            variant_index = None
+        else:
+            try:
+                variant_index = int(part2)
+            except:
+                # future proof - we may move to hash-based indices for hashed variants
+                variant_index = part2
+
+        for variant in pkg.iter_variants():
+            if variant.index == variant_index:
+                return variant
+
+        return None
+
+    def get_resource_from_handle(self, resource_handle, verify_repo=True):
+        if verify_repo:
+            repository_type = resource_handle.variables.get("repository_type")
+            location = resource_handle.variables.get("location")
+
+            if repository_type != self.name():
+                raise ResourceError("repository_type mismatch - requested %r, "
+                                    "repository_type is %r"
+                                    % (repository_type, self.name()))
+
+            # It appears that sometimes, the handle location can differ to the
+            # repo location even though they are the same path (different
+            # mounts). We account for that here.
+            #
+            # https://github.com/nerdvegas/rez/pull/957
+            #
+            if location != self.location:
+                location = canonical_path(location, platform_)
+
+            if location != self.location:
+                raise ResourceError("location mismatch - requested %r, "
+                                    "repository location is %r "
+                                    % (location, self.location))
+
+        resource = self.pool.get_resource_from_handle(resource_handle)
+        resource._repository = self
+        return resource
 
     @cached_property
     def file_lock_dir(self):
@@ -553,6 +665,29 @@ class FileSystemPackageRepository(PackageRepository):
 
         with open(filepath, 'w'):  # create empty file
             pass
+
+    def on_variant_install_cancelled(self, variant_resource):
+        """
+        TODO:
+            Currently this will not delete a newly created package version
+            directory. The reason is because behaviour with multiple rez procs
+            installing variants of the same package in parallel is not well
+            tested and hasn't been fully designed for yet. Currently, if this
+            did delete the version directory, it could delete it while another
+            proc is performing a successful variant install into the same dir.
+
+            Note though that this does do useful work, if the cancelled variant
+            was getting installed into an existing package. In this case, the
+            .building file is deleted, because the existing package.py is valid.
+
+            Work has to be done to change the way that new variant dirs and the
+            .building file are created, so that we can safely delete cancelled
+            variant dirs in the presence of multiple rez procs.
+
+            See https://github.com/nerdvegas/rez/issues/810
+        """
+        family_path = os.path.join(self.location, variant_resource.name)
+        self._delete_stale_build_tagfiles(family_path)
 
     def install_variant(self, variant_resource, dry_run=False, overrides=None):
         overrides = overrides or {}
@@ -618,7 +753,14 @@ class FileSystemPackageRepository(PackageRepository):
 
     @contextmanager
     def _lock_package(self, package_name, package_version=None):
-        from rez.vendor.lockfile import LockFile
+        from rez.vendor.lockfile import NotLocked
+
+        if _settings.file_lock_type == 'default':
+            from rez.vendor.lockfile import LockFile
+        elif _settings.file_lock_type == 'mkdir':
+            from rez.vendor.lockfile.mkdirlockfile import MkdirLockFile as LockFile
+        elif _settings.file_lock_type == 'link':
+            from rez.vendor.lockfile.linklockfile import LinkLockFile as LockFile
 
         path = self.location
 
@@ -642,8 +784,10 @@ class FileSystemPackageRepository(PackageRepository):
             yield
 
         finally:
-            if lock.is_locked():
+            try:
                 lock.release()
+            except NotLocked:
+                pass
 
     def clear_caches(self):
         super(FileSystemPackageRepository, self).clear_caches()
@@ -670,7 +814,7 @@ class FileSystemPackageRepository(PackageRepository):
     def _get_family_dirs__key(self):
         if os.path.isdir(self.location):
             st = os.stat(self.location)
-            return str(("listdir", self.location, st.st_ino, st.st_mtime))
+            return str(("listdir", self.location, int(st.st_ino), st.st_mtime))
         else:
             return str(("listdir", self.location))
 
@@ -697,7 +841,7 @@ class FileSystemPackageRepository(PackageRepository):
 
     def _get_version_dirs__key(self, root):
         st = os.stat(root)
-        return str(("listdir", root, st.st_ino, st.st_mtime))
+        return str(("listdir", root, int(st.st_ino), st.st_mtime))
 
     @memcached(servers=config.memcached_uri if config.cache_listdir else None,
                min_compress_len=config.memcached_listdir_min_compress_len,
@@ -785,20 +929,31 @@ class FileSystemPackageRepository(PackageRepository):
     def _get_family(self, name):
         is_valid_package_name(name, raise_error=True)
         if os.path.isdir(os.path.join(self.location, name)):
-            family = self.get_resource(
+            # force case-sensitive match on pkg family dir, on case-insensitive platforms
+            if not platform_.has_case_sensitive_filesystem and \
+                    name not in os.listdir(self.location):
+                return None
+
+            return self.get_resource(
                 FileSystemPackageFamilyResource.key,
                 location=self.location,
-                name=name)
-            return family
+                name=name
+            )
         else:
             filepath, format_ = self.get_file(self.location, package_filename=name)
             if filepath:
-                family = self.get_resource(
+                # force case-sensitive match on pkg filename, on case-insensitive platforms
+                if not platform_.has_case_sensitive_filesystem:
+                    ext = os.path.splitext(filepath)[-1]
+                    if (name + ext) not in os.listdir(self.location):
+                        return None
+
+                return self.get_resource(
                     FileSystemCombinedPackageFamilyResource.key,
                     location=self.location,
                     name=name,
-                    ext=format_.extension)
-                return family
+                    ext=format_.extension
+                )
         return None
 
     def _get_packages(self, package_family_resource):
@@ -960,7 +1115,7 @@ class FileSystemPackageRepository(PackageRepository):
         if existing_package:
             if variant.index is None:
                 existing_installed_variant = \
-                    self.iter_variants(existing_package).next()
+                    next(self.iter_variants(existing_package))
             else:
                 variant_requires = variant.variant_requires
 
@@ -1037,7 +1192,7 @@ class FileSystemPackageRepository(PackageRepository):
         # This is done so that variants added to an existing package don't change
         # attributes such as 'timestamp' or release-related fields like 'revision'.
         #
-        for key, value in overrides.iteritems():
+        for key, value in overrides.items():
             if existing_package:
                 if key not in package_data:
                     package_data[key] = value
@@ -1053,6 +1208,12 @@ class FileSystemPackageRepository(PackageRepository):
 
         # format version is always set
         package_data["format_version"] = format_version
+
+        # Stop if package is unversioned and config does not allow that
+        if (not package_data["version"]
+                and not config.allow_unversioned_packages):
+            raise PackageMetadataError("Unversioned package is not allowed "
+                                       "in current configuration.")
 
         # write out new package definition file
         package_file = ".".join([package_filename, package_extension])

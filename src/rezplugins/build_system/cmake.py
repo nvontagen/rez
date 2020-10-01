@@ -4,20 +4,24 @@ CMake-based build system
 from __future__ import print_function
 
 from rez.build_system import BuildSystem
-from rez.build_process_ import BuildType
+from rez.build_process import BuildType
 from rez.resolved_context import ResolvedContext
 from rez.exceptions import BuildSystemError
-from rez.util import create_forwarding_script
-from rez.packages_ import get_developer_package
+from rez.utils.execution import create_forwarding_script
+from rez.packages import get_developer_package
 from rez.utils.platform_ import platform_
 from rez.config import config
 from rez.backport.shutilwhich import which
 from rez.vendor.schema.schema import Or
+from rez.vendor.six import six
 from rez.shells import create_shell
 import functools
 import os.path
 import sys
 import os
+
+
+basestring = six.string_types[0]
 
 
 class RezCMakeError(BuildSystemError):
@@ -45,14 +49,15 @@ class CMakeBuildSystem(BuildSystem):
         'make': "Unix Makefiles",
         'nmake': "NMake Makefiles",
         'mingw': "MinGW Makefiles",
-        'xcode': "Xcode"
+        'xcode': "Xcode",
+        'ninja': "Ninja",
     }
 
     build_targets = ["Debug", "Release", "RelWithDebInfo"]
 
     schema_dict = {
         "build_target": Or(*build_targets),
-        "build_system": Or(*build_systems.keys()),
+        "build_system": Or(*list(build_systems.keys())),
         "cmake_args": [basestring],
         "cmake_binary": Or(None, basestring),
         "make_binary": Or(None, basestring)
@@ -79,7 +84,7 @@ class CMakeBuildSystem(BuildSystem):
                            help="set the build target (default: %(default)s).")
         group.add_argument("--bs", "--cmake-build-system",
                            dest="cmake_build_system",
-                           choices=cls.build_systems.keys(),
+                           choices=list(cls.build_systems.keys()),
                            default=settings.build_system,
                            help="set the cmake build system (default: %(default)s).")
 
@@ -158,7 +163,7 @@ class CMakeBuildSystem(BuildSystem):
         retcode, _, _ = context.execute_shell(command=cmd,
                                               block=True,
                                               cwd=build_path,
-                                              actions_callback=callback)
+                                              post_actions_callback=callback)
         ret = {}
         if retcode:
             ret["success"] = False
@@ -188,6 +193,8 @@ class CMakeBuildSystem(BuildSystem):
                 make_binary = "mingw32-make"
             elif self.cmake_build_system == "nmake":
                 make_binary = "nmake"
+            elif self.cmake_build_system == "ninja":
+                make_binary = "ninja"
             else:
                 make_binary = "make"
 
@@ -204,7 +211,7 @@ class CMakeBuildSystem(BuildSystem):
         retcode, _, _ = context.execute_shell(command=cmd,
                                               block=True,
                                               cwd=build_path,
-                                              actions_callback=callback)
+                                              post_actions_callback=callback)
 
         if not retcode and install and "install" not in cmd:
             cmd.append("install")
@@ -214,7 +221,7 @@ class CMakeBuildSystem(BuildSystem):
             retcode, _, _ = context.execute_shell(command=cmd,
                                                   block=True,
                                                   cwd=build_path,
-                                                  actions_callback=callback)
+                                                  post_actions_callback=callback)
 
         ret["success"] = (not retcode)
         return ret
@@ -226,13 +233,15 @@ class CMakeBuildSystem(BuildSystem):
         cmake_path = os.path.join(os.path.dirname(__file__), "cmake_files")
         template_path = os.path.join(os.path.dirname(__file__), "template_files")
 
-        cls.set_standard_vars(executor=executor,
-                              context=context,
-                              variant=variant,
-                              build_type=build_type,
-                              install=install,
-                              build_path=build_path,
-                              install_path=install_path)
+        cls.add_standard_build_actions(
+            executor=executor,
+            context=context,
+            variant=variant,
+            build_type=build_type,
+            install=install,
+            build_path=build_path,
+            install_path=install_path
+        )
 
         executor.env.CMAKE_MODULE_PATH.append(cmake_path.replace('\\', '/'))
         executor.env.REZ_BUILD_DOXYFILE = os.path.join(template_path, 'Doxyfile')
@@ -258,7 +267,7 @@ def _FWD__spawn_build_shell(working_dir, build_path, variant_index, install,
 
     retcode, _, _ = context.execute_shell(block=True,
                                           cwd=build_path,
-                                          actions_callback=callback)
+                                          post_actions_callback=callback)
     sys.exit(retcode)
 
 

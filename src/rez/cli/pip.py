@@ -2,17 +2,20 @@
 Install a pip-compatible python package, and its dependencies, as rez packages.
 """
 from __future__ import print_function
+from argparse import REMAINDER
+import logging
 
 
 def setup_parser(parser, completions=False):
-    parser.add_argument(
-        "--pip-version", dest="pip_ver", metavar="VERSION",
-        help="pip version (rez package) to use, default is latest")
     parser.add_argument(
         "--python-version", dest="py_ver", metavar="VERSION",
         help="python version (rez package) to use, default is latest. Note "
         "that the pip package(s) will be installed with a dependency on "
         "python-MAJOR.MINOR.")
+    parser.add_argument(
+        "--pip-version", dest="pip_ver", metavar="VERSION",
+        help="pip version (rez package) to use, default is latest."
+        " This option is deprecated and will be removed in the future.")
     parser.add_argument(
         "-i", "--install", action="store_true",
         help="install the package")
@@ -24,54 +27,53 @@ def setup_parser(parser, completions=False):
         help="install as released package; if not set, package is installed "
         "locally only")
     parser.add_argument(
+         "-p", "--prefix", type=str, metavar='PATH',
+         help="install to a custom package repository path.")
+    parser.add_argument(
         "PACKAGE",
         help="package to install or archive/url to install from")
+    parser.add_argument(
+        "-e", "--extra", nargs=REMAINDER,
+        help="extra args passthrough to pip install (overrides pre-configured args if specified)"
+    )
 
 
 def command(opts, parser, extra_arg_groups=None):
+    from rez.config import config
+
+    # debug_package_release is used by rez.pip._verbose
+    config.debug_package_release = config.debug_package_release or opts.verbose
+    if not config.debug_package_release:
+        # Prevent other rez.* loggers from printing debugs
+        logging.getLogger('rez').setLevel(logging.INFO)
+
     from rez.pip import pip_install_package, run_pip_command
-    import sys
+    import warnings
 
     if not (opts.search or opts.install):
         parser.error("Expected one of: --install, --search")
 
     if opts.search:
-        p = run_pip_command(["search", opts.PACKAGE])
-        p.wait()
+        with run_pip_command(["search", opts.PACKAGE]) as p:
+            p.wait()
         return
 
-    installed_variants, skipped_variants = pip_install_package(
+    if opts.pip_ver:
+        with warnings.catch_warnings():
+            # Cause all warnings to always be triggered.
+            warnings.simplefilter("always")
+            warnings.warn(
+                "The option --pip-version is deprecated and will be removed in a future version",
+                category=DeprecationWarning
+            )
+
+    pip_install_package(
         opts.PACKAGE,
         pip_version=opts.pip_ver,
         python_version=opts.py_ver,
-        release=opts.release)
-
-    # print summary
-    #
-
-    def print_variant(v):
-        pkg = v.parent
-        txt = "%s: %s" % (pkg.qualified_name, pkg.uri)
-        if v.subpath:
-            txt += " (%s)" % v.subpath
-        print("  " + txt)
-
-    print()
-    if installed_variants:
-        print("%d packages were installed:" % len(installed_variants))
-        for variant in installed_variants:
-            print_variant(variant)
-    else:
-        print("NO packages were installed.")
-
-    if skipped_variants:
-        print()
-        print("%d packages were already installed:" % len(skipped_variants))
-        for variant in skipped_variants:
-            print_variant(variant)
-
-    print()
-
+        release=opts.release,
+        prefix=opts.prefix,
+        extra_args=opts.extra)
 
 # Copyright 2013-2016 Allan Johns.
 #

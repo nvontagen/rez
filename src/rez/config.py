@@ -1,7 +1,8 @@
+from __future__ import absolute_import
 from rez import __version__
 from rez.utils.data_utils import AttrDictWrapper, RO_AttrDictWrapper, \
     convert_dicts, cached_property, cached_class_property, LazyAttributeMeta, \
-    deep_update, ModifyList
+    deep_update, ModifyList, DelayLoad
 from rez.utils.formatting import expandvars, expanduser
 from rez.utils.logging_ import get_debug_printer
 from rez.utils.scope import scoped_format
@@ -10,13 +11,17 @@ from rez import module_root_path
 from rez.system import system
 from rez.vendor.schema.schema import Schema, SchemaError, And, Or, Use
 from rez.vendor import yaml
+from rez.vendor.six import six
 from rez.vendor.yaml.error import YAMLError
 from rez.backport.lru_cache import lru_cache
 from contextlib import contextmanager
 from inspect import ismodule
 import os
-import os.path
+import re
 import copy
+
+
+basestring = six.string_types[0]
 
 
 # -----------------------------------------------------------------------------
@@ -117,6 +122,26 @@ class StrList(Setting):
         value = value.replace(self.sep, ' ').split()
         return [x for x in value if x]
 
+class PipInstallRemaps(Setting):
+    """Ordered, pip install remappings."""
+    PARDIR, SEP = map(re.escape, (os.pardir, os.sep))
+    RE_TOKENS = {'sep': SEP, 's': SEP, 'pardir': PARDIR, 'p': PARDIR}
+    TOKENS = {'sep': os.sep, 's': os.sep, 'pardir': os.pardir, 'p': os.pardir}
+    KEYS = ["record_path", "pip_install", "rez_install"]
+
+    schema = Schema([{key: And(str, len) for key in KEYS}])
+
+    def validate(self, data):
+        """Extended to substitute regex-escaped path tokens."""
+        return [
+            {
+                key: expression.format(
+                    **(self.RE_TOKENS if key == "record_path" else self.TOKENS)
+                )
+                for key, expression in remap.items()
+            }
+            for remap in super(PipInstallRemaps, self).validate(data)
+        ]
 
 class OptionalStrList(StrList):
     schema = Or(And(None, Use(lambda x: [])),
@@ -142,10 +167,21 @@ class Int(Setting):
                                      % self._env_var_name)
 
 
+class Float(Setting):
+    schema = Schema(float)
+
+    def _parse_env_var(self, value):
+        try:
+            return float(value)
+        except ValueError:
+            raise ConfigurationError("Expected %s to be a float"
+                                     % self._env_var_name)
+
+
 class Bool(Setting):
     schema = Schema(bool)
-    true_words = frozenset(["1", "true", "yes", "y", "on"])
-    false_words = frozenset(["0", "false", "no", "n", "off"])
+    true_words = frozenset(["1", "true", "t", "yes", "y", "on"])
+    false_words = frozenset(["0", "false", "f", "no", "n", "off"])
     all_words = true_words | false_words
 
     def _parse_env_var(self, value):
@@ -160,6 +196,11 @@ class Bool(Setting):
                 % (self._env_var_name, ", ".join(self.all_words)))
 
 
+class OptionalBool(Bool):
+    # need None first, or Bool.schema will coerce None to False
+    schema = Or(None, Bool.schema)
+
+
 class ForceOrBool(Bool):
     FORCE_STR = "force"
 
@@ -170,7 +211,7 @@ class ForceOrBool(Bool):
     def _parse_env_var(self, value):
         if value == self.FORCE_STR:
             return value
-        super(ForceOrBool, self)._parse_env_var(value)
+        return super(ForceOrBool, self)._parse_env_var(value)
 
 
 class Dict(Setting):
@@ -234,6 +275,13 @@ class RezToolsVisibility_(Str):
         return Or(*(x.name for x in RezToolsVisibility))
 
 
+class ExecutableScriptMode_(Str):
+    @cached_class_property
+    def schema(cls):
+        from rez.utils.execution import ExecutableScriptMode
+        return Or(*(x.name for x in ExecutableScriptMode))
+
+
 class OptionalStrOrFunction(Setting):
     schema = Or(None, basestring, callable)
 
@@ -279,8 +327,13 @@ config_schema = Schema({
     "bind_module_path":                             PathList,
     "standard_system_paths":                        PathList,
     "package_definition_build_python_paths":        PathList,
-    "implicit_packages":                            StrList,
     "platform_map":                                 OptionalDict,
+    "default_relocatable_per_package":              OptionalDict,
+    "default_relocatable_per_repository":           OptionalDict,
+    "default_cachable_per_package":                 OptionalDict,
+    "default_cachable_per_repository":              OptionalDict,
+    "default_cachable":                             OptionalBool,
+    "implicit_packages":                            StrList,
     "parent_variables":                             StrList,
     "resetting_variables":                          StrList,
     "release_hooks":                                StrList,
@@ -296,6 +349,8 @@ config_schema = Schema({
     "implicit_styles":                              OptionalStrList,
     "alias_styles":                                 OptionalStrList,
     "memcached_uri":                                OptionalStrList,
+    "pip_extra_args":                               OptionalStrList,
+    "pip_install_remaps":                           PipInstallRemaps,
     "local_packages_path":                          Str,
     "release_packages_path":                        Str,
     "dot_image_format":                             Str,
@@ -303,7 +358,9 @@ config_schema = Schema({
     "documentation_url":                            Str,
     "suite_visibility":                             SuiteVisibility_,
     "rez_tools_visibility":                         RezToolsVisibility_,
+    "create_executable_script_mode":                ExecutableScriptMode_,
     "suite_alias_prefix_char":                      Char,
+    "cache_packages_path":                          OptionalStr,
     "package_definition_python_path":               OptionalStr,
     "tmpdir":                                       OptionalStr,
     "context_tmpdir":                               OptionalStr,
@@ -343,8 +400,15 @@ config_schema = Schema({
     "memcached_context_file_min_compress_len":      Int,
     "memcached_listdir_min_compress_len":           Int,
     "memcached_resolve_min_compress_len":           Int,
+    "shell_error_truncate_cap":                     Int,
+    "package_cache_log_days":                       Int,
+    "package_cache_max_variant_days":               Int,
+    "package_cache_clean_limit":                    Float,
     "allow_unversioned_packages":                   Bool,
     "rxt_as_yaml":                                  Bool,
+    "package_cache_during_build":                   Bool,
+    "package_cache_local":                          Bool,
+    "package_cache_same_device":                    Bool,
     "color_enabled":                                ForceOrBool,
     "resolve_caching":                              Bool,
     "cache_package_files":                          Bool,
@@ -371,7 +435,6 @@ config_schema = Schema({
     "quiet":                                        Bool,
     "show_progress":                                Bool,
     "catch_rex_errors":                             Bool,
-    "shell_error_truncate_cap":                     Int,
     "default_relocatable":                          Bool,
     "set_prompt":                                   Bool,
     "prefix_prompt":                                Bool,
@@ -384,9 +447,12 @@ config_schema = Schema({
     "rez_1_cmake_variables":                        Bool,
     "disable_rez_1_compatibility":                  Bool,
     "make_package_temporarily_writable":            Bool,
+    "read_package_cache":                           Bool,
+    "write_package_cache":                          Bool,
     "env_var_separators":                           Dict,
     "variant_select_mode":                          VariantSelectMode_,
     "package_filter":                               OptionalDictOrDictList,
+    "package_orderers":                             OptionalDictOrDictList,
     "new_session_popen_args":                       OptionalDict,
     "context_tracking_amqp":                        OptionalDict,
     "context_tracking_extra_fields":                OptionalDict,
@@ -412,7 +478,7 @@ _plugin_config_dict = {
 # Config
 # -----------------------------------------------------------------------------
 
-class Config(object):
+class Config(six.with_metaclass(LazyAttributeMeta, object)):
     """Rez configuration settings.
 
     You should call the `create_config` function, rather than constructing a
@@ -423,7 +489,6 @@ class Config(object):
     files update the master configuration to create the final config. See the
     comments at the top of 'rezconfig' for more details.
     """
-    __metaclass__ = LazyAttributeMeta
     schema = config_schema
     schema_error = ConfigurationError
 
@@ -595,10 +660,14 @@ class Config(object):
         self.__dict__, other.__dict__ = other.__dict__, self.__dict__
 
     def _validate_key(self, key, value, key_schema):
+        if isinstance(value, DelayLoad):
+            value = value.get_value()
+
         if type(key_schema) is type and issubclass(key_schema, Setting):
             key_schema = key_schema(self, key)
         elif not isinstance(key_schema, Schema):
             key_schema = Schema(key_schema)
+
         return key_schema.validate(value)
 
     @cached_property
@@ -765,7 +834,7 @@ def expand_system_vars(data):
         elif isinstance(value, (list, tuple, set)):
             return [_expanded(x) for x in value]
         elif isinstance(value, dict):
-            return dict((k, _expanded(v)) for k, v in value.iteritems())
+            return dict((k, _expanded(v)) for k, v in value.items())
         else:
             return value
     return _expanded(data)
@@ -808,8 +877,6 @@ def _replace_config(other):
 
 @lru_cache()
 def _load_config_py(filepath):
-    from rez.vendor.six.six import exec_
-
     reserved = dict(
         # Standard Python module variables
         # Made available from within the module,
@@ -818,21 +885,22 @@ def _load_config_py(filepath):
         __file__=filepath,
 
         rez_version=__version__,
-        ModifyList=ModifyList
+        ModifyList=ModifyList,
+        DelayLoad=DelayLoad
     )
 
-    globs = reserved.copy()
+    g = reserved.copy()
     result = {}
 
     with open(filepath) as f:
         try:
             code = compile(f.read(), filepath, 'exec')
-            exec_(code, _globs_=globs)
-        except Exception, e:
+            exec(code, g)
+        except Exception as e:
             raise ConfigurationError("Error loading configuration from %s: %s"
                                      % (filepath, str(e)))
 
-    for k, v in globs.iteritems():
+    for k, v in g.items():
         if k != '__builtins__' \
                 and not ismodule(v) \
                 and k not in reserved:
@@ -846,7 +914,7 @@ def _load_config_yaml(filepath):
     with open(filepath) as f:
         content = f.read()
     try:
-        doc = yaml.load(content) or {}
+        doc = yaml.load(content, Loader=yaml.FullLoader) or {}
     except YAMLError as e:
         raise ConfigurationError("Error loading configuration from %s: %s"
                                  % (filepath, str(e)))

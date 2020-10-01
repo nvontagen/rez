@@ -1,7 +1,11 @@
 """
 Utilities for working with dict-based schemas.
 """
-from rez.vendor.schema.schema import Schema, Optional, Use, And
+from rez.vendor.six import six
+from rez.vendor.schema.schema import Schema, Optional, Use, And, Optional
+
+
+basestring = six.string_types[0]
 
 
 # an alias which just so happens to be the same number of characters as
@@ -29,7 +33,7 @@ def schema_keys(schema):
     dict_ = schema._schema
     assert isinstance(dict_, dict)
 
-    for key in dict_.iterkeys():
+    for key in dict_.keys():
         key_ = _get_leaf(key)
         if isinstance(key_, basestring):
             keys.add(key_)
@@ -56,7 +60,7 @@ def dict_to_schema(schema_dict, required, allow_custom_keys=True, modifier=None)
     def _to(value):
         if isinstance(value, dict):
             d = {}
-            for k, v in value.iteritems():
+            for k, v in value.items():
                 if isinstance(k, basestring):
                     k = Required(k) if required else Optional(k)
                 d[k] = _to(v)
@@ -70,6 +74,20 @@ def dict_to_schema(schema_dict, required, allow_custom_keys=True, modifier=None)
         return schema
 
     return _to(schema_dict)
+
+
+def extensible_schema_dict(schema_dict):
+    """Create schema dict that allows arbitrary extra keys.
+
+    This helps to keep newer configs or package definitions compatible with
+    older rez versions, that may not support newer schema fields.
+    """
+    result = {
+        Optional(basestring): object
+    }
+
+    result.update(schema_dict)
+    return result
 
 
 # Copyright 2013-2016 Allan Johns.

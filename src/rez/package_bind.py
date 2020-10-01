@@ -1,12 +1,12 @@
 from __future__ import print_function
 
-from rez.exceptions import RezBindError
+from rez.exceptions import RezBindError, _NeverError
 from rez import module_root_path
 from rez.util import get_close_pkgs
 from rez.utils.formatting import columnise
 from rez.utils.logging_ import print_error
 from rez.config import config
-from rez.vendor import argparse
+import argparse
 import os.path
 import os
 import sys
@@ -101,7 +101,7 @@ def bind_package(name, path=None, version_range=None, no_deps=False,
     while pending:
         pending_ = pending
         pending = set()
-        exc_type = None
+        exc_type = _NeverError
 
         for name_ in pending_:
             # turn error on binding of dependencies into a warning - we don't
@@ -150,9 +150,9 @@ def _bind_package(name, path=None, version_range=None, bind_args=None,
         raise RezBindError("Bind module not found for '%s'" % name)
 
     # load the bind module
-    stream = open(bindfile)
     namespace = {}
-    exec stream in namespace
+    with open(bindfile) as stream:
+        exec(compile(stream.read(), stream.name, 'exec'), namespace)
 
     # parse bind module params
     bind_parser = argparse.ArgumentParser(prog="rez bind %s" % name,

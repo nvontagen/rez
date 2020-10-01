@@ -3,7 +3,7 @@ from __future__ import print_function
 import os
 import sys
 import signal
-from rez.vendor.argparse import _SubParsersAction, ArgumentParser, SUPPRESS, \
+from argparse import _SubParsersAction, ArgumentParser, SUPPRESS, \
     ArgumentError
 
 
@@ -41,6 +41,7 @@ subcommands = {
     "interpret": {},
     "memcache": {},
     "pip": {},
+    "pkg-cache": {},
     "plugins": {},
     "python": {
         "arg_mode": "passthrough"
@@ -114,7 +115,7 @@ class LazyArgumentParser(ArgumentParser):
         if self._subparsers:
             for action in self._subparsers._actions:
                 if isinstance(action, LazySubParsersAction):
-                    for parser_name, parser in action._name_parser_map.iteritems():
+                    for parser_name, parser in action._name_parser_map.items():
                         action._setup_subparser(parser_name, parser)
         return super(LazyArgumentParser, self).format_help()
 
@@ -125,6 +126,19 @@ _handled_term = False
 
 def _env_var_true(name):
     return (os.getenv(name, "").lower() in ("1", "true", "on", "yes"))
+
+
+def print_items(items, stream=sys.stdout):
+    try:
+        item_per_line = (not stream.isatty())
+    except:
+        item_per_line = True
+
+    if item_per_line:
+        for item in items:
+            print(item)
+    else:
+        print(' '.join(map(str, items)))
 
 
 def sigbase_handler(signum, frame):

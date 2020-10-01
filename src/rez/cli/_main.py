@@ -4,7 +4,8 @@ The main command-line entry point.
 from __future__ import print_function
 
 import sys
-from rez.vendor.argparse import _StoreTrueAction, SUPPRESS
+import importlib
+from argparse import _StoreTrueAction, SUPPRESS
 from rez.cli._util import subcommands, LazyArgumentParser, _env_var_true
 from rez.utils.logging_ import print_error
 from rez.exceptions import RezError, RezSystemError
@@ -46,7 +47,7 @@ class SetupRezSubParser(object):
 
     def get_module(self):
         if self.module_name not in sys.modules:
-            __import__(self.module_name, globals(), locals(), [], -1)
+            importlib.import_module(self.module_name)
         return sys.modules[self.module_name]
 
 
@@ -69,7 +70,12 @@ class InfoAction(_StoreTrueAction):
         sys.exit(0)
 
 
-def run(command=None):
+def setup_parser():
+    """Create and setup parser for given rez command line interface.
+
+    Returns:
+        LazyArgumentParser: Argument parser for rez command.
+    """
     parser = LazyArgumentParser("rez")
 
     parser.add_argument("-i", "--info", action=InfoAction,
@@ -95,6 +101,13 @@ def run(command=None):
             help='',  # required so that it can be setup later
             setup_subparser=SetupRezSubParser(module_name))
 
+    return parser
+
+
+def run(command=None):
+
+    sys.dont_write_bytecode = True
+
     # construct args list. Note that commands like 'rez-env foo' and
     # 'rez env foo' are equivalent
     if command:
@@ -111,6 +124,7 @@ def run(command=None):
     else:
         arg_mode = None
 
+    parser = setup_parser()
     if arg_mode == "grouped":
         # args split into groups by '--'
         arg_groups = [[]]
@@ -137,7 +151,15 @@ def run(command=None):
         exc_type = RezError
 
     def run_cmd():
-        return opts.func(opts, opts.parser, extra_arg_groups)
+        try:
+            # python3 will not automatically handle cases where no sub parser
+            # has been selected. In these cases func will not exist, and an
+            # AttributeError will be raised.
+            func = opts.func
+        except AttributeError:
+            parser.error("too few arguments.")
+        else:
+            return func(opts, opts.parser, extra_arg_groups)
 
     if opts.profile:
         import cProfile

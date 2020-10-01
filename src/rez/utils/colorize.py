@@ -146,6 +146,15 @@ def alias(str_):
     return _color_level(str_, 'alias')
 
 
+def inactive(str_):
+    """Return the string wrapped with the appropriate styling to display
+    something inactive.
+
+    Choices are grey, grey or grey.
+    """
+    return _color(str_, styles=["DIM"])
+
+
 def notset(str_):
     """ Return the string wrapped with the appropriate escape sequences to
     remove all styling.
@@ -193,12 +202,7 @@ def _color(str_, fore_color=None, back_color=None, styles=None):
     .. _Colorama:
         https://pypi.python.org/pypi/colorama
     """
-    # TODO: Colorama is documented to work on Windows and trivial test case
-    # proves this to be the case, but it doesn't work in Rez.  If the initialise
-    # is called in sec/rez/__init__.py then it does work, however as discussed
-    # in the following comment this is not always desirable.  So until we can
-    # work out why we forcibly turn it off.
-    if not config.get("color_enabled", False) or platform_.name == "windows":
+    if not config.get("color_enabled", False):
         return str_
 
     # lazily init colorama. This is important - we don't want to init at startup,
@@ -300,7 +304,8 @@ class Printer(object):
 
     def __call__(self, msg='', style=None):
         print(self.get(msg, style), file=self.buf)
-        self.buf.flush()
+        if hasattr(self.buf, 'flush'):
+            self.buf.flush()
 
     def get(self, msg, style=None):
         if style and self.colorize:

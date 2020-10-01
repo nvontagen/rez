@@ -42,7 +42,7 @@ def poll(client, interval):
             t, stats = entry
 
             dt = t - prev_t
-            for instance, payload in stats.iteritems():
+            for instance, payload in stats.items():
                 prev_payload = prev_stats.get(instance)
                 if payload and prev_payload:
                     # stats
@@ -73,7 +73,7 @@ def poll(client, interval):
 
 def command(opts, parser, extra_arg_groups=None):
     from rez.config import config
-    from rez.packages_ import iter_package_families, iter_packages
+    from rez.packages import iter_package_families, iter_packages
     from rez.utils.yaml import dump_yaml
     from rez.utils.memcached import Client
     from rez.utils.formatting import columnise, readable_time_duration, \

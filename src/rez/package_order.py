@@ -1,6 +1,10 @@
 from inspect import isclass
 from hashlib import sha1
 
+from rez.config import config
+from rez.utils.data_utils import cached_class_property
+from rez.vendor.version.version import Version
+
 
 class PackageOrder(object):
     """Package reorderer base class."""
@@ -36,7 +40,16 @@ class PackageOrder(object):
 
     @property
     def sha1(self):
-        return sha1(repr(self)).hexdigest()
+        return sha1(repr(self).encode('utf-8')).hexdigest()
+
+    def __str__(self):
+        raise NotImplementedError
+
+    def __eq__(self, other):
+        raise NotImplementedError
+
+    def __ne__(self, other):
+        return not self == other
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, str(self))
@@ -56,6 +69,9 @@ class NullPackageOrder(PackageOrder):
 
     def __str__(self):
         return "{}"
+
+    def __eq__(self, other):
+        return type(self) == type(other)
 
     def to_pod(self):
         """
@@ -85,6 +101,12 @@ class SortedOrder(PackageOrder):
 
     def __str__(self):
         return str(self.descending)
+
+    def __eq__(self, other):
+        return (
+            type(self) == type(other) and
+            self.descending == other.descending
+        )
 
     def to_pod(self):
         """
@@ -119,7 +141,7 @@ class PerFamilyOrder(PackageOrder):
 
     def reorder(self, iterable, key=None):
         try:
-            item = iter(iterable).next()
+            item = next(iter(iterable))
         except:
             return None
 
@@ -137,6 +159,13 @@ class PerFamilyOrder(PackageOrder):
     def __str__(self):
         items = sorted((x[0], str(x[1])) for x in self.order_dict.items())
         return str((items, str(self.default_order)))
+
+    def __eq__(self, other):
+        return (
+            type(other) == type(self) and
+            self.order_dict == other.order_dict and
+            self.default_order == other.default_order
+        )
 
     def to_pod(self):
         """
@@ -158,13 +187,13 @@ class PerFamilyOrder(PackageOrder):
         packages = {}
 
         # group package fams by orderer they use
-        for fam, orderer in self.order_dict.iteritems():
+        for fam, orderer in self.order_dict.items():
             k = id(orderer)
             orderers[k] = orderer
             packages.setdefault(k, set()).add(fam)
 
         orderlist = []
-        for k, fams in packages.iteritems():
+        for k, fams in packages.items():
             orderer = orderers[k]
             data = to_pod(orderer)
             data["packages"] = sorted(fams)
@@ -238,6 +267,12 @@ class VersionSplitPackageOrder(PackageOrder):
     def __str__(self):
         return str(self.first_version)
 
+    def __eq__(self, other):
+        return (
+            type(other) == type(self) and
+            self.first_version == other.first_version
+        )
+
     def to_pod(self):
         """
         Example (in yaml):
@@ -245,11 +280,11 @@ class VersionSplitPackageOrder(PackageOrder):
             type: version_split
             first_version: "3.0.0"
         """
-        return dict(first_version=self.first_version)
+        return dict(first_version=str(self.first_version))
 
     @classmethod
     def from_pod(cls, data):
-        return cls(data["first_version"])
+        return cls(Version(data["first_version"]))
 
 
 class TimestampPackageOrder(PackageOrder):
@@ -304,7 +339,6 @@ class TimestampPackageOrder(PackageOrder):
         self.rank = rank
 
     def reorder(self, iterable, key=None):
-        reordered = []
         first_after = None
         key = key or (lambda x: x)
 
@@ -372,6 +406,13 @@ class TimestampPackageOrder(PackageOrder):
     def __str__(self):
         return str((self.timestamp, self.rank))
 
+    def __eq__(self, other):
+        return (
+            type(other) == type(self) and
+            self.timestamp == other.timestamp and
+            self.rank == other.rank
+        )
+
     def to_pod(self):
         """
         Example (in yaml):
@@ -385,8 +426,30 @@ class TimestampPackageOrder(PackageOrder):
 
     @classmethod
     def from_pod(cls, data):
-        return cls(timestamp=data["timestamp"],
-                   rank=data["rank"])
+        return cls(timestamp=data["timestamp"], rank=data.get("rank", 0))
+
+
+class PackageOrderList(list):
+    """A list of package orderer.
+    """
+    def to_pod(self):
+        data = []
+        for f in self:
+            data.append(to_pod(f))
+        return data
+
+    @classmethod
+    def from_pod(cls, data):
+        flist = PackageOrderList()
+        for dict_ in data:
+            f = from_pod(dict_)
+            flist.append(f)
+        return flist
+
+    @cached_class_property
+    def singleton(cls):
+        """Filter list as configured by rezconfig.package_filter."""
+        return cls.from_pod(config.package_orderers)
 
 
 def to_pod(orderer):
@@ -421,7 +484,7 @@ def register_orderer(cls):
 
 # registration of builtin orderers
 _orderers = {}
-for o in globals().values():
+for o in list(globals().values()):
     register_orderer(o)
 
 

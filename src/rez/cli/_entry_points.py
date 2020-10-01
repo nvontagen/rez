@@ -26,7 +26,7 @@ def get_specifications():
     """
     specs = {}
 
-    for attr, obj in sys.modules[__name__].__dict__.iteritems():
+    for attr, obj in sys.modules[__name__].__dict__.items():
         scriptname = getattr(obj, "__scriptname__", None)
         if scriptname:
             spec = "%s = rez.cli._entry_points:%s" % (scriptname, attr)
@@ -89,7 +89,7 @@ def run_rez_complete():
     return run("complete")
 
 
-@scriptname("_rez-fwd")
+@scriptname("_rez_fwd")
 def run_rez_fwd():
     check_production_install()
     from rez.cli._main import run
@@ -185,6 +185,13 @@ def run_rez_pip():
     check_production_install()
     from rez.cli._main import run
     return run("pip")
+
+
+@scriptname("rez-pkg-cache")
+def run_rez_pkg_cache():
+    check_production_install()
+    from rez.cli._main import run
+    return run("pkg-cache")
 
 
 @scriptname("rez-plugins")

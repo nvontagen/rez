@@ -1,15 +1,18 @@
 from rez.config import config
-from rez.packages_ import Package
+from rez.packages import Package, create_package
 from rez.serialise import load_from_file, FileFormat, set_objects
-from rez.packages_ import create_package
 from rez.exceptions import PackageMetadataError, InvalidPackageError
-from rez.utils.system import add_sys_paths
+from rez.utils.execution import add_sys_paths
 from rez.utils.sourcecode import SourceCode
 from rez.utils.logging_ import print_info, print_error
 from rez.vendor.enum import Enum
+from rez.vendor.six import six
 from inspect import isfunction
 import os.path
 import stat
+
+
+basestring = six.string_types[0]
 
 
 class PreprocessMode(Enum):
@@ -102,12 +105,17 @@ class DeveloperPackage(Package):
 
         package = create_package(name, data, package_cls=cls)
 
+        # set filepath in case preprocessor needs to do something on disk (eg
+        # check the git repo)
+        package.filepath = filepath
+
         # preprocessing
         result = package._get_preprocessed(data)
 
         if result:
             package, data = result
 
+        # set filepath back in case preprocessor changed it
         package.filepath = filepath
 
         # find all includes, this is needed at install time to copy the right
@@ -115,7 +123,7 @@ class DeveloperPackage(Package):
         package.includes = set()
 
         def visit(d):
-            for k, v in d.iteritems():
+            for k, v in d.items():
                 if isinstance(v, SourceCode):
                     package.includes |= (v.includes or set())
                 elif isinstance(v, dict):

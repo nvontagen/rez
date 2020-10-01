@@ -7,6 +7,7 @@ from threading import Lock
 from tempfile import mkdtemp
 from contextlib import contextmanager
 from uuid import uuid4
+import errno
 import weakref
 import atexit
 import posixpath
@@ -16,6 +17,10 @@ import shutil
 import os
 import re
 import stat
+import platform
+
+from rez.vendor.six import six
+from rez.utils.platform_ import platform_
 
 
 class TempDirs(object):
@@ -156,6 +161,19 @@ def get_existing_path(path, topmost_path=None):
         prev_path = path
 
 
+def safe_listdir(path):
+    """Safe listdir.
+
+    Works in a multithread/proc scenario where dirs may be deleted at any time
+    """
+    try:
+        return os.listdir(path)
+    except OSError as e:
+        if e.errno in (errno.ENOENT, errno.ENOTDIR):
+            return []
+        raise
+
+
 def safe_makedirs(path):
     """Safe makedirs.
 
@@ -185,6 +203,28 @@ def safe_remove(path):
     except OSError:
         if os.path.exists(path):
             raise
+
+
+def forceful_rmtree(path):
+    """Like shutil.rmtree, but may change permissions.
+
+    Specifically, non-writable dirs within `path` can cause rmtree to fail. This
+    func chmod's to writable to avoid this issue, if possible.
+    """
+    def _on_error(func, path, exc_info):
+        try:
+            parent_path = os.path.dirname(path)
+
+            if parent_path != path and not os.access(parent_path, os.W_OK):
+                st = os.stat(parent_path)
+                os.chmod(parent_path, st.st_mode | stat.S_IWUSR)
+        except:
+            # avoid confusion by ensuring original exception is reraised
+            pass
+
+        func(path)
+
+    shutil.rmtree(path, onerror=_on_error)
 
 
 def replacing_symlink(source, link_name):
@@ -321,7 +361,7 @@ def copy_or_replace(src, dst):
     '''
     try:
         shutil.copy(src, dst)
-    except (OSError, IOError), e:
+    except (OSError, IOError) as e:
         # It's possible that the file existed, but was owned by someone
         # else - in that situation, shutil.copy might then fail when it
         # tries to copy perms.
@@ -386,18 +426,18 @@ def copytree(src, dst, symlinks=False, ignore=None, hardlinks=False):
             else:
                 copy(srcname, dstname)
         # XXX What about devices, sockets etc.?
-        except (IOError, os.error), why:
+        except (IOError, os.error) as why:
             errors.append((srcname, dstname, str(why)))
         # catch the Error from the recursive copytree so that we can
         # continue with other files
-        except shutil.Error, err:
+        except shutil.Error as err:
             errors.extend(err.args[0])
     try:
         shutil.copystat(src, dst)
     except shutil.WindowsError:
         # can't copy file access times on Windows
         pass
-    except OSError, why:
+    except OSError as why:
         errors.extend((src, dst, str(why)))
     if errors:
         raise shutil.Error(errors)
@@ -421,7 +461,8 @@ def safe_chmod(path, mode):
 
 
 def to_nativepath(path):
-    return os.path.join(path.split('/'))
+    path = path.replace('\\', '/')
+    return os.path.join(*path.split('/'))
 
 
 def to_ntpath(path):
@@ -430,6 +471,31 @@ def to_ntpath(path):
 
 def to_posixpath(path):
     return posixpath.sep.join(path.split(ntpath.sep))
+
+
+def canonical_path(path, platform=None):
+    """ Resolves symlinks, and formats filepath.
+
+    Resolves symlinks, lowercases if filesystem is case-insensitive,
+    formats filepath using slashes appropriate for platform.
+
+    Args:
+        path (str): Filepath being formatted
+        platform (rez.utils.platform_.Platform): Indicates platform path is being
+            formatted for. Defaults to current platform.
+
+    Returns:
+        str: Provided path, formatted for platform.
+    """
+    if platform is None:
+        platform = platform_
+
+    path = os.path.normpath(os.path.realpath(path))
+
+    if not platform.has_case_sensitive_filesystem:
+        return path.lower()
+
+    return path
 
 
 def encode_filesystem_name(input_str):
@@ -476,10 +542,10 @@ def encode_filesystem_name(input_str):
     As an example, the string "Foo_Bar (fun).txt" would get encoded as:
         _foo___bar_020_028fun_029.txt
     """
-    if isinstance(input_str, str):
+    if isinstance(input_str, six.string_types):
         input_str = unicode(input_str)
     elif not isinstance(input_str, unicode):
-        raise TypeError("input_str must be a basestring")
+        raise TypeError("input_str must be a %s" % six.string_types[0].__name__)
 
     as_is = u'abcdefghijklmnopqrstuvwxyz0123456789.-'
     uppercase = u'ABCDEFGHIJKLMNOPQRSTUVWXYZ'

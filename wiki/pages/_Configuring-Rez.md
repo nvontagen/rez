@@ -2,7 +2,7 @@
 
 Rez has a good number of configurable settings. The default settings, and
 documentation for every setting, can be found
-[here](https://github.com/nerdvegas/rez/blob/master/src/rez/rezconfig.py).
+[here](https://github.com/__GITHUB_REPO__/blob/master/src/rez/rezconfig.py).
 
 Settings are determined in the following way:
 
@@ -78,6 +78,16 @@ The *system* object has the following attributes:
 * domain: Domain name, eg 'somestudio.com';
 * rez_version: Version of rez, eg '2.0.1'.
 
+## Delay Load
+
+It is possible to store a config setting in a separate file, which will be loaded
+only when that setting is referenced. This can be useful if you have a large value
+(such as a dict) that you don't want to pollute the main config with. YAML and
+JSON formats are supported:
+
+    # in rezconfig
+    default_relocatable_per_package = DelayLoad('/svr/configs/rez_relocs.yaml')
+
 ## Commandline Tool
 
 You can use the *rez-config* command line tool to see what the current configured settings are.
@@ -102,7 +112,7 @@ Here is an example showing how to override settings using your own configuration
 Following is an alphabetical list of rez settings.
 
 > [[media/icons/info.png]] Note that this list has been generated automatically
-> from the [rez-config.py](https://github.com/nerdvegas/rez/blob/master/src/rez/rezconfig.py)
+> from the [rez-config.py](https://github.com/__GITHUB_REPO__/blob/master/src/rez/rezconfig.py)
 > file in the rez source, so you can also refer to that file for the same information.
 
 __REZCONFIG_MD__

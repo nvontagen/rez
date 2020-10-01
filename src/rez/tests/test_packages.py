@@ -1,17 +1,18 @@
 """
 test package iteration, serialization etc
 """
-from rez.packages_ import iter_package_families, iter_packages, get_package, \
-    create_package, get_developer_package
-from rez.package_resources_ import package_release_keys
-from rez.package_repository import create_memory_package_repository
+from rez.packages import iter_package_families, iter_packages, get_package, \
+    create_package, get_developer_package, get_variant_from_uri
 from rez.package_py_utils import expand_requirement
+from rez.package_resources import package_release_keys
 from rez.tests.util import TestBase, TempdirMixin
 from rez.utils.formatting import PackageRequest
+from rez.utils.platform_ import platform_
 from rez.utils.sourcecode import SourceCode
-import rez.vendor.unittest2 as unittest
+import unittest
 from rez.vendor.version.version import Version
 from rez.vendor.version.util import VersionError
+from rez.utils.filesystem import canonical_path
 import os.path
 import os
 
@@ -119,21 +120,20 @@ class TestPackages(TestBase, TempdirMixin):
 
     def test_3(self):
         """check package contents."""
-
         # a py-based package
         package = get_package("versioned", "3.0")
         expected_data = dict(
             name="versioned",
             version=Version("3.0"),
-            base=os.path.join(self.py_packages_path, "versioned", "3.0"),
+            base=canonical_path(os.path.join(self.py_packages_path, "versioned", "3.0")),
             commands=SourceCode('env.PATH.append("{root}/bin")'))
         data = package.validated_data()
         self.assertDictEqual(data, expected_data)
 
         # a yaml-based package
         package = get_package("versioned", "2.0")
-        expected_uri = os.path.join(self.yaml_packages_path,
-                                    "versioned", "2.0", "package.yaml")
+        expected_uri = canonical_path(os.path.join(self.yaml_packages_path,
+                                            "versioned", "2.0", "package.yaml"))
         self.assertEqual(package.uri, expected_uri)
 
         # a py-based package with late binding attribute functions
@@ -142,7 +142,7 @@ class TestPackages(TestBase, TempdirMixin):
 
         # a 'combined' type package
         package = get_package("multi", "1.0")
-        expected_uri = os.path.join(self.yaml_packages_path, "multi.yaml<1.0>")
+        expected_uri = canonical_path(os.path.join(self.yaml_packages_path, "multi.yaml<1.0>"))
         self.assertEqual(package.uri, expected_uri)
         expected_data = dict(
             name="multi",
@@ -153,7 +153,7 @@ class TestPackages(TestBase, TempdirMixin):
 
         # a 'combined' type package, with version overrides
         package = get_package("multi", "1.1")
-        expected_uri = os.path.join(self.yaml_packages_path, "multi.yaml<1.1>")
+        expected_uri = canonical_path(os.path.join(self.yaml_packages_path, "multi.yaml<1.1>"))
         self.assertEqual(package.uri, expected_uri)
         expected_data = dict(
             name="multi",
@@ -164,7 +164,7 @@ class TestPackages(TestBase, TempdirMixin):
 
         # check that visibility of 'combined' packages is correct
         package = get_package("multi", "2.0")
-        expected_uri = os.path.join(self.py_packages_path, "multi.py<2.0>")
+        expected_uri = canonical_path(os.path.join(self.py_packages_path, "multi.py<2.0>"))
         self.assertEqual(package.uri, expected_uri)
 
     def test_4(self):
@@ -309,11 +309,12 @@ class TestPackages(TestBase, TempdirMixin):
 
     def test_6(self):
         """test variant iteration."""
+        base = canonical_path(os.path.join(self.py_packages_path, "variants_py", "2.0"))
         expected_data = dict(
             name="variants_py",
             version=Version("2.0"),
             description="package with variants",
-            base=os.path.join(self.py_packages_path, "variants_py", "2.0"),
+            base=base,
             requires=[PackageRequest("python-2.7")],
             commands=SourceCode('env.PATH.append("{root}/bin")'))
 
@@ -348,14 +349,14 @@ class TestPackages(TestBase, TempdirMixin):
             package = get_developer_package(path)
 
             # install variants of the developer package into new repo
-            variant = package.iter_variants().next()
+            variant = next(package.iter_variants())
             result = variant.install(repo_path, dry_run=True)
             self.assertEqual(result, None)
 
             for variant in package.iter_variants():
                 variant.install(repo_path)
 
-            variant = package.iter_variants().next()
+            variant = next(package.iter_variants())
             result = variant.install(repo_path, dry_run=True)
             self.assertNotEqual(result, None)
 
@@ -371,7 +372,7 @@ class TestPackages(TestBase, TempdirMixin):
 
             # install a variant again. Even though the variant is already installed,
             # this should update the package, because data outside the variant changed.
-            variant = package.iter_variants().next()
+            variant = next(package.iter_variants())
             result = variant.install(repo_path, dry_run=True)
             self.assertEqual(result, None)
             variant.install(repo_path)
@@ -421,53 +422,12 @@ class TestPackages(TestBase, TempdirMixin):
         for req in bad_tests:
             self.assertRaises(VersionError, expand_requirement, req)
 
-    def test_9(self):
-        """test package orderers."""
-        from rez.package_order import NullPackageOrder, PerFamilyOrder, \
-            VersionSplitPackageOrder, TimestampPackageOrder, SortedOrder, \
-            to_pod, from_pod
-
-        def _test(orderer, package_name, expected_order):
-            it = iter_packages(package_name)
-            descending = sorted(it, key=lambda x: x.version, reverse=True)
-
-            pod = to_pod(orderer)
-            orderer2 = from_pod(pod)
-
-            for orderer_ in (orderer, orderer2):
-                ordered = orderer_.reorder(descending)
-                result = [str(x.version) for x in ordered]
-                self.assertEqual(result, expected_order)
-
-        null_orderer = NullPackageOrder()
-        split_orderer = VersionSplitPackageOrder(Version("2.6.0"))
-        # after v1.1.0 and before v1.1.1
-        timestamp_orderer = TimestampPackageOrder(timestamp=3001, rank=3)
-        # after v2.1.0 and before v2.1.5
-        timestamp2_orderer = TimestampPackageOrder(timestamp=7001, rank=3)
-
-        expected_null_result = ["7", "6", "5"]
-        expected_split_result = ["2.6.0", "2.5.2", "2.7.0", "2.6.8"]
-        expected_timestamp_result = ["1.1.1", "1.1.0", "1.0.6", "1.0.5",
-                                     "1.2.0", "2.0.0", "2.1.5", "2.1.0"]
-        expected_timestamp2_result = ["2.1.5", "2.1.0", "2.0.0", "1.2.0",
-                                      "1.1.1", "1.1.0", "1.0.6", "1.0.5"]
-
-        _test(null_orderer, "pysplit", expected_null_result)
-        _test(split_orderer, "python", expected_split_result)
-        _test(timestamp_orderer, "timestamped", expected_timestamp_result)
-        _test(timestamp2_orderer, "timestamped", expected_timestamp2_result)
-
-        fam_orderer = PerFamilyOrder(
-            order_dict=dict(pysplit=null_orderer,
-                            python=split_orderer,
-                            timestamped=timestamp_orderer),
-            default_order=SortedOrder(descending=False))
-
-        _test(fam_orderer, "pysplit", expected_null_result)
-        _test(fam_orderer, "python", expected_split_result)
-        _test(fam_orderer, "timestamped", expected_timestamp_result)
-        _test(fam_orderer, "pymum", ["1", "2", "3"])
+    def test_variant_from_uri(self):
+        """Test getting a variant from its uri."""
+        package = get_package("variants_py", "2.0")
+        for variant in package.iter_variants():
+            variant2 = get_variant_from_uri(variant.uri)
+            self.assertEqual(variant, variant2)
 
 
 class TestMemoryPackages(TestBase):
@@ -477,7 +437,7 @@ class TestMemoryPackages(TestBase):
         desc = 'the foo package'
         package = create_package('foo', {'description': desc})
         self.assertEqual(package.description, desc)
-        variant = package.iter_variants().next()
+        variant = next(package.iter_variants())
         parent_package = variant.parent
         self.assertEqual(package.description, desc)
 

@@ -1,10 +1,10 @@
 """
 test completions
 """
-import rez.vendor.unittest2 as unittest
+import unittest
 from rez.tests.util import TestBase
 from rez.config import Config, get_module_root_config
-from rez.packages_ import get_completions
+from rez.packages import get_completions
 import os
 import os.path
 
