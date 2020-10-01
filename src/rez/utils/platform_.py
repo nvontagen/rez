@@ -182,6 +182,11 @@ class LinuxPlatform(_UnixPlatform):
     name = "linux"
 
     def _os(self):
+        """
+        Note: We cannot replace this with 'distro.linux_distribution' in
+        entirety as unfortunately there are slight differences. Eg our code
+        gives 'Ubuntu-16.04' whereas distro gives 'ubuntu-16.04'.
+        """
         distributor = None
         release = None
 
@@ -265,28 +270,13 @@ class LinuxPlatform(_UnixPlatform):
             if result:
                 return result
 
-        # last, use python's dist detection. It is known to return incorrect
-        # info on some systems though
-        try:
-            distributor_, release_, _ = platform.linux_distribution()
-        except:
-            distributor_, release_, _ = platform.dist()
+        # use distro lib
+        from rez.vendor.distro import distro
 
-        if distributor_ and not distributor:
-            distributor = distributor_
-        if release_ and not release:
-            release = release_
-
-        result = _os()
-        if result:
-            return result
-
-        # last resort, accept missing release
-        if distributor:
-            return distributor
-
-        # give up
-        raise RezSystemError("cannot detect operating system")
+        parts = distro.linux_distribution(full_distribution_name=False)
+        if parts[0] == '':
+            raise RezSystemError("cannot detect operating system")
+        return '-'.join(parts[:2])
 
     def _terminal_emulator_command(self):
         term = which("x-terminal-emulator", "xterm", "konsole")

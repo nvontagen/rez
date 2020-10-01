@@ -93,6 +93,11 @@ class PackageCopyError(RezError):
     pass
 
 
+class PackageCacheError(RezError):
+    """There was an error related to a package cache."""
+    pass
+
+
 class PackageTestError(RezError):
     """There was a problem running a package test."""
     pass
@@ -181,6 +186,14 @@ class InvalidPackageError(RezError):
 
 class RezGuiQTImportError(ImportError):
     """A special case - see cli/gui.py
+    """
+    pass
+
+
+class _NeverError(RezError):
+    """Exception that is never raised.
+
+    Used to toggle exception handling in some cases.
     """
     pass
 

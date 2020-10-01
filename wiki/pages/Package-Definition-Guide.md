@@ -531,6 +531,14 @@ Package authors. Should be in order, starting with the major contributor.
 This is the same as *requires*, except that these dependencies are only included during a build
 (typically invoked using the *rez-build* tool).
 
+### cachable
+*Boolean*
+
+    cachable = True
+
+Determines whether a package can be cached when [package caching](Package-Caching#Overview) is
+enabled. If not provided, this is determined from the global config setting [default_cachable](Configuring-Rez#default_cachable) and related `default_cachable_*` settings.
+
 ### commands
 *Function*
 
@@ -587,12 +595,13 @@ requirements, or with requirements that do not translate well to directories on 
 (such as conflict requirements).
 
 ### help
-*String*
+*String or List of String*
 
     help = "https://github.com/nerdvegas/rez/wiki"
 
 URL for package webpage, or, if a string containing spaces, a command to run. You can show the help
-for a package using the *rez-help* command line tool.
+for a package using the *rez-help* command line tool. If this value is a list, then this represents
+multiple help entries, and you can specify the entry you want to see using the `SECTION` argument.
 
 ### name
 *String (mandatory)*
@@ -629,13 +638,24 @@ pass; then, all *commands* are run in a second; and lastly, *post_commands* are 
 phase. It is sometimes useful to ensure that some of a package's commands are run before, or after
 all others, and using pre/post_commands is a way of doing that.
 
+### pre_test_commands
+*Function*
+
+    def pre_test_commands():
+        if test.name == "unit":
+            env.IS_UNIT_TEST = 1
+
+This is similar to *commands*, except that it is run prior to each test defined in
+[tests](#tests)
+See [here](Package-Commands#pre-test-commands) for more details.
+
 ### relocatable
 *Boolean*
 
     relocatable = True
 
 Determines whether a package can be copied to another package repository (using the `rez-cp` tool for
-example). If not provided, this is determined from the global config setting [default_relocatable](Configuring-Rez#default_relocatable).
+example). If not provided, this is determined from the global config setting [default_relocatable](Configuring-Rez#default_relocatable) and related `default_relocatable_*` settings.
 
 ### requires
 *List of string*
@@ -656,6 +676,8 @@ covers the range of all python packages starting with 2.6 - for example, "python
 request a package, you are asking rez for any version within this request, although rez will aim to
 give you the latest possible version.
 
+For more details on request syntax, see [here](Basic-Concepts#package-requests).
+
 ### tests
 *Dict*
 
@@ -663,11 +685,16 @@ give you the latest possible version.
         "unit": "python -m unittest discover -s {root}/python/tests",
         "lint": {
             "command": "pylint mymodule",
-            "requires": ["pylint"]
+            "requires": ["pylint"],
+            "run_on": ["default", "pre_release"]
         },
-        "CI": {
+        "maya_CI": {
             "command": "python {root}/ci_tests/maya.py",
-            "requires": ["maya-2017"]
+            "on_variants": {
+                "type": "requires",
+                "value": ["maya"]
+            },
+            "run_on": "explicit"
         }
     }
 
@@ -676,11 +703,25 @@ run a linter on the package *maya_utils* with the *test* attribute above, you wo
 
     ]$ rez-test maya_utils lint
 
-If a test entry is a string or list of strings, this is interpreted as the command to run. If you
-provide a nested dict, you can specify extra package requirements as well (in the *requires* key),
-and the command itself under *command*.
+If a test entry is a string or list of strings, this is interpreted as the command to run. Command
+strings will expand any references to package attributes, such as *{root}*.
 
-Command strings will expand any references to package attributes, such as *{root}*.
+If you provide a nested dict, you can specify extra fields per test, as follows:
+
+* **requires**: Extra package requirements to include in the test's runtime env.
+* **run_on**: When to run this test. Valid values are:
+  * `default` (the default): Run when `rez-test` is run with no `TEST` args specified.
+  * `pre_install`: Run before an install (ie `rez-build -i`), and abort the install on fail.
+  * `pre_release`: Run before a release, and abort the release on fail.
+  * `explicit`: Only run if specified as `TEST` when `rez-test` is run.
+* **on_variants**: Which variants the test should be run on. Valid values are:
+  * True: Run the test on all variants.
+  * False (the default): Run the test only on one variant (ie the variant you get by
+    default when the test env is resolved). This is useful for tests like linting,
+    where variants may be irrelevant.
+  * A dict. This is a variant selection mechanism. In the example above, the "maya_CI" test will
+    run only on those variants that directly require `maya` (or a package within this range, eg
+    `maya-2019`). Note that "requires" is the only filter type currently available.
 
 ### tools
 *List of string*
@@ -730,6 +771,7 @@ but with differing dependencies. See the [variants chapter](Variants) for furthe
 This is the version of the package. See [here](Basic-Concepts#versions) for further details on valid
 package versions.
 
+
 ## Build Time Package Attributes
 
 The following package attributes only appear in packages to be built; they are stripped from the
@@ -761,6 +803,15 @@ variable.
 
 Specify the build system used to build this package. If not set, it is detected automatically when
 a build occurs (or the user specifies it using the `--build-system` option).
+
+### pre_build_commands
+*Function*
+
+    def pre_build_commands():
+        env.FOO_BUILT_BY_REZ = 1
+
+This is similar to *commands*, except that it is run _prior to the current package being built_.
+See [here](Package-Commands#pre-build-commands) for more details.
 
 ### preprocess
 *Function*

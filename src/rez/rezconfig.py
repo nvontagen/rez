@@ -5,8 +5,9 @@ Settings are determined in the following way (higher number means higher
 precedence):
 
 1) The setting is first read from this file;
-2) The setting is then overridden if it is present in another settings file
-   pointed at by the $REZ_CONFIG_FILE environment variable;
+2) The setting is then overridden if it is present in another settings file(s)
+   pointed at by the $REZ_CONFIG_FILE environment variable. Note that multiple
+   files are supported, separated by os.pathsep;
 3) The setting is further overriden if it is present in $HOME/.rezconfig;
 4) The setting is overridden again if the environment variable $REZ_XXX is
    present, where XXX is the uppercase version of the setting key. For example,
@@ -174,6 +175,112 @@ memcached_resolve_min_compress_len = 1
 
 
 ###############################################################################
+# Package Copy
+###############################################################################
+
+# Whether a package is relocatable or not, if it does not explicitly state with
+# the 'relocatable' attribute in its package definition file.
+default_relocatable = True
+
+# Set relocatable on a per-package basis. This is here for migration purposes -
+# it's better for packages themselves to set their relocatable attribute.
+# Overrides 'default_relocatable' if a package matches.
+#
+# Example:
+#
+#     default_relocatable_per_package = {
+#         "nuke": False,
+#         "maya": True
+#     }
+default_relocatable_per_package = None
+
+# Set relocatable on a per-package-repository basis. Overrides
+# 'default_relocatable_per_package' and 'default_relocatable' for any repos
+# listed here.
+#
+# Example:
+#
+#     default_relocatable_per_repostitory = {
+#         '/svr/packages': False
+#     }
+default_relocatable_per_repository = None
+
+
+###############################################################################
+# Package Caching
+#
+# Note: "package caching" refers to copying variant payloads to a path on local
+# disk, and using those payloads instead. It is a way to avoid fetching files
+# over shared storage, and is unrelated to memcached-based caching of resolves
+# and package definitions as seen in the "Caching" config section.
+#
+###############################################################################
+
+# Whether a package is cachable or not, if it does not explicitly state with
+# the 'cachable' attribute in its package definition file. If None, defaults
+# to packages' relocatability (ie cachable will == relocatable).
+default_cachable = False
+
+# Set cachable on a per-package basis. This is here for migration purposes -
+# it's better for packages themselves to set their cachable attribute. Overrides
+# 'default_cachable' if a package matches.
+#
+# Example:
+#
+#     default_cachable_per_package = {
+#         "nuke": False,
+#         "maya": True
+#     }
+default_cachable_per_package = None
+
+# Set cachable on a per-package-repository basis. Overrides
+# 'default_cachable_per_package' and 'default_cachable' for any repos listed here.
+#
+# Example:
+#
+#     default_cachable_per_repostitory = {
+#         '/svr/packages': False
+#     }
+default_cachable_per_repository = None
+
+# The path where rez locally caches variants. If this is None, then package
+# caching is disabled.
+cache_packages_path = None
+
+# If True, variants in a resolve will use locally cached payloads if they are
+# present in the cache.
+read_package_cache = True
+
+# If True, creating or sourcing a context will cause variants to be cached.
+write_package_cache = True
+
+# Delete variants that haven't been used in N days (see `rez-pkg-cache --clean`).
+# To disable, set to zero.
+package_cache_max_variant_days = 30
+
+# Enable package caching during a package build.
+package_cache_during_build = False
+
+# Allow caching of local packages. You would only want to set this True for
+# testing purposes.
+package_cache_local = False
+
+# Allow package caching if the source package is on the same physical disk
+# as the package cache itself. You would only want to set this True for testing
+# purposes.
+package_cache_same_device = False
+
+# If > 0, spend up to this many seconds cleaning the cache every time the cache
+# is updated. This is a way to keep the cache size under control without having
+# to periodically run 'rez-pkg-cache --clean'. Set to -1 to disable.
+package_cache_clean_limit = 0.5
+
+# Number of days of package cache logs to keep.
+# Logs are written to {pkg-cache-root}/.sys/log/*.log
+package_cache_log_days = 7
+
+
+###############################################################################
 # Package Resolution
 ###############################################################################
 
@@ -219,20 +326,20 @@ prune_failed_graph = True
 #
 # As an example, suppose you have a package foo which has two variants:
 #
-#    variants = [
-#        ["bar-3.0", "baz-2.1"],
-#        ["bar-2.8", "burgle-1.0"]
-#    ]
+#     variants = [
+#         ["bar-3.0", "baz-2.1"],
+#         ["bar-2.8", "burgle-1.0"]
+#     ]
 #
 # if you do:
 #
-#    rez-env foo bar
+#     rez-env foo bar
 #
 # ...then, in either variant_select_mode, it will prefer the first variant,
 # ["bar-3.0", "baz-2.1"], because it has a higher version of the first variant
 # requirement (bar). However, if we instead do:
 #
-#    rez-env foo bar burgle
+#     rez-env foo bar burgle
 #
 # ...we get different behavior. version_priority mode will still return
 # ["bar-3.0", "baz-2.1"], because the first requirement's version is higher.
@@ -288,6 +395,70 @@ variant_select_mode = "version_priority"
 # *.beta              | Same as glob(*.beta)
 # foo-5+              | Same as range(foo-5+)
 package_filter = None
+
+# Package order. One or more "orderers" can be listed.
+# This will affect the order of version resolution.
+# This can be used to ensure that specific version have priority over others.
+# Higher versions can still be accessed if required.
+#
+# A common use case is to ease migration from python-2 to python-3:
+#
+#     package_orderers = [
+#         {
+#            "type": "per_family",
+#            "orderers": [
+#                 {
+#                     "packages": ["python"],
+#                     "type": "version_split",
+#                     "first_version": "2.7.16"
+#                 }
+#             ]
+#         }
+#     ]
+#
+# This will ensure that for the "python" package, versions equals or lower than "2.7.16" will have priority.
+# Considering the following versions: "2.7.4", "2.7.16", "3.7.4":
+#
+# example             | result
+# --------------------|----------------------------------------------------
+# rez-env python      | python-2.7.16
+# rez-env python-3    | python-3.7.4
+#
+# Here's another example, using another orderer: "soft_timestamp".
+# This orderer will prefer packages released before a provided timestamp.
+# The following example will prefer package released before 2019-09-09.
+#
+#     package_orderers = [
+#         {
+#             "type": "soft_timestamp",
+#             "timestamp": 1568001600,  # 2019-09-09
+#             "rank": 3
+#         }
+#     ]
+#
+# A timestamp can be generated with python:
+#
+#     $ python -c "import datetime, time; print(int(time.mktime(datetime.date(2019, 9, 9).timetuple())))"
+#     1568001600
+#
+# The rank can be used to allow some versions released after the timestamp to still be considered.
+# When using semantic versionnng, a value of 3 is the most common.
+# This will let version with a different patch number to be accepted.
+#
+# Considering a package "foo" with the following versions:
+# - "1.0.0" was released at 2019-09-07
+# - "2.0.0" was released at 2019-09-08
+# - "2.0.1" was released at 2019-09-10
+# - "2.1.0" was released at 2019-09-11
+# - "3.0.0" was released at 2019-09-12
+#
+# example             | timestamp  | rank | result
+# --------------------|------------|---------------------------------------
+# rez-env foo         | 2019-09-09 | 0    | foo-2.0.0
+# rez-env foo         | 2019-09-09 | 3    | foo-2.0.1
+# rez-env foo         | 2019-09-09 | 2    | foo-2.1.0
+# rez-env foo         | 2019-09-09 | 1    | foo-3.0.0
+package_orderers = None
 
 # If True, unversioned packages are allowed. Solve times are slightly better if
 # this value is False.
@@ -432,7 +603,7 @@ package_preprocess_mode = "override"
 
 
 ###############################################################################
-# Tracking
+# Context Tracking
 ###############################################################################
 
 # Send data to AMQP whenever a context is created or sourced.
@@ -465,9 +636,9 @@ package_preprocess_mode = "override"
 # is set to an empty string (possibly due to var expansion), it is removed from
 # the message payload.
 #
-
 context_tracking_host = ''
 
+# See [context_tracking_host](#context_tracking_host)
 context_tracking_amqp = {
     "userid": '',
     "password": '',
@@ -477,6 +648,7 @@ context_tracking_amqp = {
     "message_delivery_mode": 1
 }
 
+# See [context_tracking_host](#context_tracking_host)
 context_tracking_context_fields = [
     "status",
     "timestamp",
@@ -488,6 +660,7 @@ context_tracking_context_fields = [
     "resolved_packages"
 ]
 
+# See [context_tracking_host](#context_tracking_host)
 context_tracking_extra_fields = {}
 
 
@@ -556,15 +729,12 @@ shell_error_truncate_cap = 750
 
 
 ###############################################################################
-# Build/Release/Copy
+# Package Build/Release
 ###############################################################################
 
-# Whether a package is relocatable or not, if it does not explicitly state with
-# the 'relocatable' attribute in its package definition file.
-default_relocatable = True
-
-# The default working directory for a package build, relative to the package
-# source directory (this is typically where temporary build files are written).
+# The default working directory for a package build, either absolute path or
+# relative to the package source directory (this is typically where temporary
+# build files are written).
 build_directory = "build"
 
 # The number of threads a build system should use, eg the make '-j' option.
@@ -694,6 +864,55 @@ max_package_changelog_revisions = 0
 #       launched without extension from windows and other systems.
 create_executable_script_mode = "single"
 
+# Configurable pip extra arguments passed to the rez-pip install command.
+# Since the rez-pip install command already includes some pre-configured
+# arguments (target, use-pep517) this setting can potentially override the
+# default configuration in a way which can cause package installation issues.
+# It is recommended to refrain from overriding the default arguments and only
+# use this setting for additional arguments that might be needed.
+# https://pip.pypa.io/en/stable/reference/pip_install/#options
+pip_extra_args = []
+
+# Substitutions for re.sub when unknown parent paths are encountered in the
+# pip package distribution record: *.dist-info/RECORD
+#
+# Rez reads the distribution record to figure out where pip installed files
+# to, then copies them to their final sub-path in the rez package. Ie, python
+# source files are hard coded to be moved under the "python" sub-folder inside
+# the rez package, which then gets added to PYTHONPATH upon rez-env.
+#
+# When it can't find the file listed in the record AND the path starts
+# with a reference to the parent directory "..", the following remaps are
+# used to:
+# 1. Match a path listed in the record to perform the filepath remapping;
+# 2. re.sub expression from step 1 to make the relative path of where pip
+#    actually installed the file to;
+# 3. re.sub expression from step 1 to make the destination filepath, relative
+#    to the rez variant root.
+#
+# Use these tokens to avoid regular expression and OS-specific path issues:
+# - "{pardir}" or "{p}" for parent directory: os.pardir, i.e. ".." on Linux/Mac
+# - "{sep}" or "{s}" for folder separators: os.sep, i.e. "/" on Linux/Mac
+pip_install_remaps = [
+    # Typical bin copy behaviour
+    # Path in record          | pip installed to    | copy to rez destination
+    # ------------------------|---------------------|--------------------------
+    # ../../bin/*             | bin/*               | bin/*
+    {
+        "record_path": r"^{p}{s}{p}{s}(bin{s}.*)",
+        "pip_install": r"\1",
+        "rez_install": r"\1",
+    },
+    # Fix for https://github.com/nerdvegas/rez/issues/821
+    # Path in record          | pip installed to    | copy to rez destination
+    # ------------------------|---------------------|--------------------------
+    # ../../lib/python/*      | *                   | python/*
+    {
+        "record_path": r"^{p}{s}{p}{s}lib{s}python{s}(.*)",
+        "pip_install": r"\1",
+        "rez_install": r"python{s}\1",
+    },
+]
 
 ###############################################################################
 # Rez-1 Compatibility
@@ -763,7 +982,7 @@ disable_rez_1_compatibility = False
 ###############################################################################
 
 # Where Rez's own documentation is hosted
-documentation_url = " http://nerdvegas.github.io/rez/"
+documentation_url = "https://github.com/nerdvegas/rez/wiki"
 
 
 ###############################################################################
@@ -793,6 +1012,13 @@ documentation_url = " http://nerdvegas.github.io/rez/"
 # When force is used, will generally be set through an environment variable, eg:
 #
 #     echo $(REZ_COLOR_ENABLED=force python -c "from rez.utils.colorize import Printer, local; Printer()('foo', local)")
+
+# TODO: Colorama is documented to work on Windows and trivial test case
+# proves this to be the case, but it doesn't work in Rez (with cmd.exe).
+# If the initialise is called in sec/rez/__init__.py then it does work,
+# however this is not always desirable.
+# As it does with with some Windows shells it can be enabled in rezconfig
+
 color_enabled = (os.name == "posix")
 
 ### Do not move or delete this comment (__DOC_END__)

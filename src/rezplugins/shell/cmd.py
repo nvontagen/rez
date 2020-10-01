@@ -77,7 +77,7 @@ class CMD(Shell):
 
         # detect system paths using registry
         def gen_expected_regex(parts):
-            whitespace = "[\s]+"
+            whitespace = r"[\s]+"
             return whitespace.join(parts)
 
         paths = []
@@ -132,7 +132,7 @@ class CMD(Shell):
             if match:
                 paths.extend(match.group(2).split(os.pathsep))
 
-        cls.syspaths = set([x for x in paths if x])
+        cls.syspaths = [x for x in paths if x]
         return cls.syspaths
 
     def _bind_interactive_rez(self):
@@ -321,7 +321,10 @@ class CMD(Shell):
         for line in value.split('\n'):
             line = self.escape_string(line)
             line = self.convert_tokens(line)
-            self._addline('echo %s' % line)
+            if line:
+                self._addline('echo %s' % line)
+            else:
+                self._addline('echo.')
 
     def error(self, value):
         for line in value.split('\n'):

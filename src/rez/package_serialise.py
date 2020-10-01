@@ -2,9 +2,10 @@ from __future__ import print_function
 
 from rez.vendor import yaml
 from rez.serialise import FileFormat
-from rez.package_resources_ import help_schema, late_bound
+from rez.package_resources import help_schema, late_bound
 from rez.vendor.schema.schema import Schema, Optional, And, Or, Use
 from rez.vendor.version.version import Version
+from rez.utils.schema import extensible_schema_dict
 from rez.utils.sourcecode import SourceCode
 from rez.utils.formatting import PackageRequest, indent, \
     dict_to_attributes_code, as_block_string
@@ -54,10 +55,18 @@ source_code_schema = Or(SourceCode, And(basestring, Use(SourceCode)))
 tests_schema = Schema({
     Optional(basestring): Or(
         Or(basestring, [basestring]),
-        {
+        extensible_schema_dict({
             "command": Or(basestring, [basestring]),
-            Optional("requires"): [package_request_schema]
-        }
+            Optional("requires"): [package_request_schema],
+            Optional("run_on"): Or(basestring, [basestring]),
+            Optional("on_variants"): Or(
+                bool,
+                {
+                    "type": "requires",
+                    "value": [package_request_schema]
+                }
+            )
+        })
     )
 })
 
@@ -76,12 +85,16 @@ package_serialise_schema = Schema({
 
     Optional('variants'):               [[package_request_schema]],
 
-    Optional('relocatable'):            late_bound(Or(None, bool)),
     Optional('hashed_variants'):        bool,
+
+    Optional('relocatable'):            late_bound(Or(None, bool)),
+    Optional('cachable'):               late_bound(Or(None, bool)),
 
     Optional('pre_commands'):           source_code_schema,
     Optional('commands'):               source_code_schema,
     Optional('post_commands'):          source_code_schema,
+    Optional('pre_build_commands'):     source_code_schema,
+    Optional('pre_test_commands'):      source_code_schema,
 
     Optional("help"):                   late_bound(help_schema),
     Optional("uuid"):                   basestring,

@@ -13,8 +13,8 @@ import sys
 import os
 
 from rez.build_system import BuildSystem
-from rez.build_process_ import BuildType
-from rez.packages_ import get_developer_package
+from rez.build_process import BuildType
+from rez.packages import get_developer_package
 from rez.resolved_context import ResolvedContext
 from rez.exceptions import PackageMetadataError
 from rez.utils.colorize import heading, Printer
@@ -180,20 +180,22 @@ class CustomBuildSystem(BuildSystem):
         retcode, _, _ = context.execute_shell(command=command,
                                               block=True,
                                               cwd=build_path,
-                                              actions_callback=_callback)
+                                              post_actions_callback=_callback)
         ret["success"] = (not retcode)
         return ret
 
     @classmethod
     def _add_build_actions(cls, executor, context, package, variant,
                            build_type, install, build_path, install_path=None):
-        cls.set_standard_vars(executor=executor,
-                              context=context,
-                              variant=variant,
-                              build_type=build_type,
-                              install=install,
-                              build_path=build_path,
-                              install_path=install_path)
+        cls.add_standard_build_actions(
+            executor=executor,
+            context=context,
+            variant=variant,
+            build_type=build_type,
+            install=install,
+            build_path=build_path,
+            install_path=install_path
+        )
 
 
 def _FWD__spawn_build_shell(working_dir, build_path, variant_index, install,
@@ -214,7 +216,7 @@ def _FWD__spawn_build_shell(working_dir, build_path, variant_index, install,
                                  install_path=install_path)
 
     retcode, _, _ = context.execute_shell(block=True, cwd=build_path,
-                                          actions_callback=callback)
+                                          post_actions_callback=callback)
     sys.exit(retcode)
 
 

@@ -10,7 +10,7 @@ import fnmatch
 from collections import defaultdict
 import sys
 
-from rez.packages_ import iter_package_families, iter_packages, get_latest_package
+from rez.packages import iter_package_families, iter_packages, get_latest_package
 from rez.exceptions import PackageFamilyNotFoundError, ResourceContentError
 from rez.util import ProgressBar
 from rez.utils.colorize import critical, info, error, Printer
@@ -206,6 +206,21 @@ class ResourceSearcher(object):
             self.package_paths = config.nonlocal_packages_path
         else:
             self.package_paths = None
+
+    def iter_resources(self, resources_request=None):
+        """Iterate over matching resources.
+
+        Args:
+            resources_request (str): Resource to search, glob-style patterns
+                are supported. If None, returns all matching resource types.
+
+        Returns:
+            2-tuple:
+            - str: resource type (family, package, variant);
+            - Iterator of `ResourceSearchResult`: Matching resources. Will be
+              in alphabetical order if families, and version ascending for
+              packages or variants.
+        """
 
     def search(self, resources_request=None):
         """Search for resources.

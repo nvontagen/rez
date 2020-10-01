@@ -70,10 +70,12 @@ class InfoAction(_StoreTrueAction):
         sys.exit(0)
 
 
-def run(command=None):
+def setup_parser():
+    """Create and setup parser for given rez command line interface.
 
-    sys.dont_write_bytecode = True
-
+    Returns:
+        LazyArgumentParser: Argument parser for rez command.
+    """
     parser = LazyArgumentParser("rez")
 
     parser.add_argument("-i", "--info", action=InfoAction,
@@ -99,6 +101,13 @@ def run(command=None):
             help='',  # required so that it can be setup later
             setup_subparser=SetupRezSubParser(module_name))
 
+    return parser
+
+
+def run(command=None):
+
+    sys.dont_write_bytecode = True
+
     # construct args list. Note that commands like 'rez-env foo' and
     # 'rez env foo' are equivalent
     if command:
@@ -115,6 +124,7 @@ def run(command=None):
     else:
         arg_mode = None
 
+    parser = setup_parser()
     if arg_mode == "grouped":
         # args split into groups by '--'
         arg_groups = [[]]
@@ -141,7 +151,15 @@ def run(command=None):
         exc_type = RezError
 
     def run_cmd():
-        return opts.func(opts, opts.parser, extra_arg_groups)
+        try:
+            # python3 will not automatically handle cases where no sub parser
+            # has been selected. In these cases func will not exist, and an
+            # AttributeError will be raised.
+            func = opts.func
+        except AttributeError:
+            parser.error("too few arguments.")
+        else:
+            return func(opts, opts.parser, extra_arg_groups)
 
     if opts.profile:
         import cProfile

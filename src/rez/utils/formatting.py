@@ -492,11 +492,35 @@ def as_block_string(txt):
 
     lines = []
     for line in txt.split('\n'):
-        line_ = json.dumps(line)
+        line_ = json.dumps(line, ensure_ascii=False)
         line_ = line_[1:-1].rstrip()  # drop double quotes
         lines.append(line_)
 
     return '"""\n%s\n"""' % '\n'.join(lines)
+
+
+_header_br = '#' * 80
+_header_br_minor = '-' * 80
+
+
+def header_comment(executor, txt):
+    """Convenience for creating header-like comment in a rex executor.
+
+    Args:
+        executor (`RexExecutor`): Executor.
+        txt (str): Comment text.
+    """
+    executor.comment("")
+    executor.comment("")
+    executor.comment(_header_br)
+    executor.comment(txt)
+    executor.comment(_header_br)
+
+
+def minor_header_comment(executor, txt):
+    executor.comment("")
+    executor.comment(txt)
+    executor.comment(_header_br_minor)
 
 
 # Copyright 2013-2016 Allan Johns.

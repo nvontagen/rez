@@ -39,7 +39,7 @@ def setup_parser(parser, completions=False):
 
 
 def command(opts, parser, extra_arg_groups=None):
-    from rez.build_process_ import create_build_process
+    from rez.build_process import create_build_process
     from rez.build_system import create_build_system
     from rez.release_vcs import create_release_vcs
     from rez.cli.build import get_build_args, get_current_developer_package
@@ -82,7 +82,7 @@ def command(opts, parser, extra_arg_groups=None):
     if config.prompt_release_message and not release_msg and not opts.no_message:
         from hashlib import sha1
 
-        h = sha1(working_dir).hexdigest()
+        h = sha1(working_dir.encode("utf8")).hexdigest()
         filename = "rez-release-message-%s.txt" % h
         filepath = os.path.join(config.tmpdir, filename)
 

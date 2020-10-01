@@ -1,7 +1,7 @@
 """
 test the build system
 """
-from rez.build_process_ import create_build_process
+from rez.build_process import create_build_process
 from rez.build_system import create_build_system
 from rez.resolved_context import ResolvedContext
 from rez.exceptions import BuildError, BuildContextResolveError,\
@@ -122,10 +122,9 @@ class TestBuild(TestBase, TempdirMixin):
         from subprocess import PIPE
         self._test_build("sup_world", "3.8")
         context = self._create_context("sup_world==3.8")
-        proc = context.execute_command(['test_ghetto'], stdout=PIPE, text=True)
+        proc = context.execute_command(['greeter'], stdout=PIPE, text=True)
         stdout = proc.communicate()[0]
-        self.assertEqual('sup dogg - how is dis shizzle doin today?',
-                         stdout.strip())
+        self.assertEqual('hola amigo', stdout.strip())
 
     @per_available_shell()
     @install_dependent()

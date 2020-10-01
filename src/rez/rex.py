@@ -7,10 +7,13 @@ import pipes
 import re
 import inspect
 import traceback
+from contextlib import contextmanager
 from string import Formatter
+
 from rez.system import system
 from rez.config import config
-from rez.exceptions import RexError, RexUndefinedVariableError, RezSystemError
+from rez.exceptions import RexError, RexUndefinedVariableError, \
+    RezSystemError, _NeverError
 from rez.util import shlex_join, is_non_string_iterable
 from rez.utils import reraise
 from rez.utils.execution import Popen
@@ -235,8 +238,19 @@ class ActionManager(object):
             return bool(self.verbose)
 
     def _format(self, value):
-        # note that the default formatter is just str()
-        return EscapedString.promote(value).formatted(self.formatter)
+        # It would be unexpected to get var expansion on the str repr of an
+        # object, so don't do that.
+        #
+        if not isinstance(value, (basestring, EscapedString)):
+            return str(value)
+
+        # Perform expansion on non-literal parts of the string. If any
+        # expansion fails, just return unformatted string.
+        #
+        try:
+            return EscapedString.promote(value).formatted(self.formatter)
+        except (KeyError, ValueError):
+            return value
 
     def _expand(self, value):
         def _fn(str_):
@@ -1191,8 +1205,46 @@ class RexExecutor(object):
             else getattr(super(RexExecutor, self), attr)
 
     def bind(self, name, obj):
-        """Binds an object to the execution context."""
+        """Binds an object to the execution context.
+
+        Args:
+            name (str) Variable name to bind to.
+            obj (object): Object to bind.
+        """
         self.globals[name] = obj
+
+    def unbind(self, name):
+        """Unbind an object from the execution context.
+
+        Has no effect if the binding does not exist.
+
+        Args:
+            name (str) Variable name to bind to.
+        """
+        self.globals.pop(name, None)
+
+    @contextmanager
+    def reset_globals(self):
+        """Remove changes to globals dict post-context.
+
+        Any bindings (self.bind) will only be visible during this context.
+        """
+
+        # we want to execute the code using self.globals - if for no other
+        # reason that self.formatter is pointing at self.globals, so if we
+        # passed in a copy, we would also need to make self.formatter "look" at
+        # the same copy - but we don't want to "pollute" our namespace, because
+        # the same executor may be used to run multiple packages. Therefore,
+        # we save a copy of self.globals before execution, and restore it after
+        #
+        saved_globals = dict(self.globals)
+
+        try:
+            yield
+
+        finally:
+            self.globals.clear()
+            self.globals.update(saved_globals)
 
     def append_system_paths(self):
         """Append system paths to $PATH."""
@@ -1246,7 +1298,7 @@ class RexExecutor(object):
             stack = traceback.format_exc()
             raise RexError("Failed to compile %s:\n\n%s" % (filename, stack))
 
-        error_class = Exception if config.catch_rex_errors else None
+        exc_type = Exception if config.catch_rex_errors else _NeverError
 
         # execute
         if exec_namespace is not None:
@@ -1259,7 +1311,7 @@ class RexExecutor(object):
                 raise
             except SourceCodeError as e:
                 reraise(e, RexError)
-            except error_class as e:
+            except exc_type as e:
                 stack = traceback.format_exc()
                 raise RexError("Failed to exec %s:\n\n%s" % (filename, stack))
 
@@ -1272,28 +1324,16 @@ class RexExecutor(object):
             code (str or SourceCode): Rex code to execute.
             filename (str): Filename to report if there are syntax errors.
             isolate (bool): If True, do not affect `self.globals` by executing
-                this code.
+                this code. DEPRECATED - use `self.reset_globals` instead.
         """
         def _apply():
             self.compile_code(code=code,
                               filename=filename,
                               exec_namespace=self.globals)
 
-        # we want to execute the code using self.globals - if for no other
-        # reason that self.formatter is pointing at self.globals, so if we
-        # passed in a copy, we would also need to make self.formatter "look" at
-        # the same copy - but we don't want to "pollute" our namespace, because
-        # the same executor may be used to run multiple packages. Therefore,
-        # we save a copy of self.globals before execution, and restore it after
-        #
         if isolate:
-            saved_globals = dict(self.globals)
-
-            try:
+            with self.reset_globals():
                 _apply()
-            finally:
-                self.globals.clear()
-                self.globals.update(saved_globals)
         else:
             _apply()
 
@@ -1311,13 +1351,13 @@ class RexExecutor(object):
                                 closure=func.__closure__)
         fn.__globals__.update(self.globals)
 
-        error_class = Exception if config.catch_rex_errors else None
+        exc_type = Exception if config.catch_rex_errors else _NeverError
 
         try:
             return fn(*nargs, **kwargs)
         except RexError:
             raise
-        except error_class as e:
+        except exc_type as e:
             from inspect import getfile
 
             stack = traceback.format_exc()

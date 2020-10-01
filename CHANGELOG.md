@@ -1,5 +1,465 @@
 # Change Log
 
+## 2.68.3 (2020-09-22)
+[Source](https://github.com/nerdvegas/rez/tree/2.68.3) | [Diff](https://github.com/nerdvegas/rez/compare/2.68.0...2.68.3)
+
+**Merged pull requests:**
+
+- fix regression wrt unicode, subprocess [\#961](https://github.com/nerdvegas/rez/pull/961) ([nerdvegas](https://github.com/nerdvegas))
+
+- Fix unicode vcs changelog encode err [\#956](https://github.com/nerdvegas/rez/pull/956) ([davidlatwe](https://github.com/davidlatwe))
+
+- Fix repo location false mismatch [\#957](https://github.com/nerdvegas/rez/pull/957) ([davidlatwe](https://github.com/davidlatwe))
+
+## 2.68.0 (2020-09-22)
+[Source](https://github.com/nerdvegas/rez/tree/2.68.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.67.1...2.68.0)
+
+**Backwards Compatibility Issues**
+
+Note that this release changes OS detection on linux. The results _should_ be the same, but if they
+do differ, and you need to retain the same OS name (which you probably will, because you'll have
+packages that depend on the analogous implicit package), then you can use the
+[platform_map](https://github.com/nerdvegas/rez/wiki/Configuring-Rez#platform_map) setting.
+
+**Merged pull requests:**
+
+- Replace platform.linux_distribution by distro [\#954](https://github.com/nerdvegas/rez/pull/954) ([predat](https://github.com/predat))
+
+**Closed issues:**
+
+- rez platform_ broken with python3.8 [\#883](https://github.com/nerdvegas/rez/issues/883)
+
+## 2.67.1 (2020-09-11)
+[Source](https://github.com/nerdvegas/rez/tree/2.67.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.67.0...2.67.1)
+
+**Merged pull requests:**
+
+- made this.root visible to pkg preprocessor [\#953](https://github.com/nerdvegas/rez/pull/953) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- this.root is None in package preprocessor [\#952](https://github.com/nerdvegas/rez/issues/952)
+
+## 2.67.0 (2020-08-25)
+[Source](https://github.com/nerdvegas/rez/tree/2.67.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.66.1...2.67.0)
+
+**Merged pull requests:**
+
+- Ninja support [\#940](https://github.com/nerdvegas/rez/pull/940) ([bareya](https://github.com/bareya))
+- print warning once if pkg cache dir not present [\#942](https://github.com/nerdvegas/rez/pull/942) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- don't raise on missing package cache dir [\#941](https://github.com/nerdvegas/rez/issues/941)
+
+## 2.66.1 (2020-08-25)
+[Source](https://github.com/nerdvegas/rez/tree/2.66.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.66.0...2.66.1)
+
+**Merged pull requests:**
+
+- Fix #934, no hash string in include script file name [\#935](https://github.com/nerdvegas/rez/pull/935) ([davidlatwe](https://github.com/davidlatwe))
+- Raise unversioned error when config not allowed [\#938](https://github.com/nerdvegas/rez/pull/938) ([davidlatwe](https://github.com/davidlatwe))
+
+**Closed issues:**
+
+- Installed package not including latest module [\#934](https://github.com/nerdvegas/rez/issues/934)
+
+## 2.66.0 (2020-08-11)
+[Source](https://github.com/nerdvegas/rez/tree/2.66.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.65.0...2.66.0)
+
+**Merged pull requests:**
+
+- [docs] Sphinx API hosted on GitHub Pages [\#832](https://github.com/nerdvegas/rez/pull/832) ([j0yu](https://github.com/j0yu))
+
+## 2.65.0 (2020-08-11)
+[Source](https://github.com/nerdvegas/rez/tree/2.65.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.64.0...2.65.0)
+
+**Notes**
+
+This release cleans up the wiki-based doc generation code, and adds a github workflow
+to automatically update the wiki.
+
+**Merged pull requests:**
+
+- [wiki] Move update utils into main repo [\#831](https://github.com/nerdvegas/rez/pull/831) ([j0yu](https://github.com/j0yu))
+
+## 2.64.0 (2020-08-11)
+[Source](https://github.com/nerdvegas/rez/tree/2.64.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.63.0...2.64.0)
+
+**Merged pull requests:**
+
+- added DelayLoad config primitive [\#922](https://github.com/nerdvegas/rez/pull/922) ([nerdvegas](https://github.com/nerdvegas))
+- Sort keys in resolved context JSON [\#923](https://github.com/nerdvegas/rez/pull/923) ([dbr](https://github.com/dbr))
+- Respect sys path order when spawning shell on Windows [\#926](https://github.com/nerdvegas/rez/pull/926) ([davidlatwe](https://github.com/davidlatwe))
+- Fix #927, add encoding=utf-8 on file write [\#928](https://github.com/nerdvegas/rez/pull/928) ([davidlatwe](https://github.com/davidlatwe))
+
+**Closed issues:**
+
+- add 'delay_load' config primitive [\#921](https://github.com/nerdvegas/rez/issues/921)
+- New spawned shell's `PATH` is random ordered on Windows [\#925](https://github.com/nerdvegas/rez/issues/925)
+- Packages that contains Unicode character failed on install/release [\#927](https://github.com/nerdvegas/rez/issues/927)
+
+## 2.63.0 (2020-08-04)
+[Source](https://github.com/nerdvegas/rez/tree/2.63.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.62.0...2.63.0)
+
+**Merged pull requests:**
+
+- don't attempt to update pkg cache on failed resolve [\#916](https://github.com/nerdvegas/rez/pull/916) ([nerdvegas](https://github.com/nerdvegas))
+- fix pkg cache fail on windows, py<=2.7 [\#917](https://github.com/nerdvegas/rez/pull/917) ([nerdvegas](https://github.com/nerdvegas))
+- raise metadata error on bad pkg, rather than build-system-notfound [\#918](https://github.com/nerdvegas/rez/pull/918) ([nerdvegas](https://github.com/nerdvegas))
+- default to disable package caching during build [\#920](https://github.com/nerdvegas/rez/pull/920) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- rez-packaage-cache issue on conflicting context [\#905](https://github.com/nerdvegas/rez/issues/905)
+- Package caching does not work on windows due to device not being implemented in py2 on Windows [\#912](https://github.com/nerdvegas/rez/issues/912)
+- Miss-leaded error message while building with invalid package metadata [\#915](https://github.com/nerdvegas/rez/issues/915)
+- add ability to disable pkg caching during build [\#919](https://github.com/nerdvegas/rez/issues/919)
+
+## 2.62.0 (2020-07-22)
+[Source](https://github.com/nerdvegas/rez/tree/2.62.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.61.1...2.62.0)
+
+**Merged pull requests:**
+
+- Allow configuration of filesystem lock mechanism [\#903](https://github.com/nerdvegas/rez/pull/903) ([dbr](https://github.com/dbr))
+- make context tracking tolerant of errors [\#911](https://github.com/nerdvegas/rez/pull/911) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- SSL crash related to context tracking [\#910](https://github.com/nerdvegas/rez/issues/910)
+
+## 2.61.1 (2020-07-10)
+[Source](https://github.com/nerdvegas/rez/tree/2.61.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.61.0...2.61.1)
+
+**Merged pull requests:**
+
+- fix for rez occasionally installed into lib64 dir [\#902](https://github.com/nerdvegas/rez/pull/902) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- occasional missing rez cli in rez-env [\#901](https://github.com/nerdvegas/rez/issues/901)
+
+## 2.61.0 (2020-07-10)
+[Source](https://github.com/nerdvegas/rez/tree/2.61.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.60.1...2.61.0)
+
+**Notes**
+
+Package caching feature added, see [here](https://github.com/nerdvegas/rez/wiki/Package-Caching).
+
+**Merged pull requests:**
+
+- Package cache [\#893](https://github.com/nerdvegas/rez/pull/893) ([nerdvegas](https://github.com/nerdvegas))
+
+## 2.60.1 (2020-05-23)
+[Source](https://github.com/nerdvegas/rez/tree/2.60.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.60.0...2.60.1)
+
+**Merged pull requests:**
+
+- fix bug in py3 (hash of unicode) [\#888](https://github.com/nerdvegas/rez/pull/888) ([nerdvegas](https://github.com/nerdvegas))
+- fix context serilisation wrt append_sys_path [\#890](https://github.com/nerdvegas/rez/pull/890) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- context sourcing broken (ResolvedContext.append_sys_path not serialised) [\#889](https://github.com/nerdvegas/rez/issues/889)
+
+## 2.60.0 (2020-05-12)
+[Source](https://github.com/nerdvegas/rez/tree/2.60.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.59.1...2.60.0)
+
+**Backwards Compatibility Issues**
+
+Please note that #887 introduces a subtle change to CLI behaviour. Previously, `rez-context --resolve`
+would print a space-separated list of packages, even when piped to another process. Now however, if
+the output is piped, it will print one package per line. This is an improvement, as it means you can
+more easily chain `rez-context` with other utilities such as grep, xargs etc.
+
+**Merged pull requests:**
+
+- added get_variant_from_uri functionality [\#886](https://github.com/nerdvegas/rez/pull/886) ([nerdvegas](https://github.com/nerdvegas))
+- Cli variant uri [\#887](https://github.com/nerdvegas/rez/pull/887) ([nerdvegas](https://github.com/nerdvegas))
+
+## 2.59.1 (2020-05-09)
+[Source](https://github.com/nerdvegas/rez/tree/2.59.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.59.0...2.59.1)
+
+**Merged pull requests:**
+
+- fixed - rez-context -g with prune-package fails [\#885](https://github.com/nerdvegas/rez/pull/885) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- rez-context -g with prune-package fails [\#884](https://github.com/nerdvegas/rez/issues/884)
+
+## 2.59.0 (2020-04-30)
+[Source](https://github.com/nerdvegas/rez/tree/2.59.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.58.1...2.59.0)
+
+**Merged pull requests:**
+
+- Fix issue 826 - correct python and pip fallback [\#878](https://github.com/nerdvegas/rez/pull/878) ([j0yu](https://github.com/j0yu))
+
+**Closed issues:**
+
+- rez-pip issues finding pip executable [\#826](https://github.com/nerdvegas/rez/issues/826)
+
+## 2.58.1 (2020-04-22)
+[Source](https://github.com/nerdvegas/rez/tree/2.58.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.58.0...2.58.1)
+
+**Merged pull requests:**
+
+- Fix ISSUE-879: AttributeError: 'Namespace' object has no attribute 'func' [\#880](https://github.com/nerdvegas/rez/pull/880) ([rfletchr](https://github.com/rfletchr))
+
+**Closed issues:**
+
+- AttributeError: 'Namespace' object has no attribute 'func' [\#879](https://github.com/nerdvegas/rez/issues/879)
+
+## 2.58.0 (2020-04-15)
+[Source](https://github.com/nerdvegas/rez/tree/2.58.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.57.0...2.58.0)
+
+**Merged pull requests:**
+
+- Expose package orderers in rez config [\#868](https://github.com/nerdvegas/rez/pull/868) ([rlessardrodeofx](https://github.com/rlessardrodeofx))
+
+**Closed issues:**
+
+- add configurability of package orderers [\#329](https://github.com/nerdvegas/rez/issues/329)
+
+## 2.57.0 (2020-04-14)
+[Source](https://github.com/nerdvegas/rez/tree/2.57.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.56.2...2.57.0)
+
+**Merged pull requests:**
+
+- Added distribution author and help information [\#873](https://github.com/nerdvegas/rez/pull/873) ([ColinKennedy](https://github.com/ColinKennedy))
+
+**Closed issues:**
+
+- rez-pip - Add help / authors attributes [\#838](https://github.com/nerdvegas/rez/issues/838)
+
+## 2.56.2 (2020-04-14)
+[Source](https://github.com/nerdvegas/rez/tree/2.56.2) | [Diff](https://github.com/nerdvegas/rez/compare/2.56.1...2.56.2)
+
+**Merged pull requests:**
+
+- Fix for git rev-parse error out before checking for allow_no_upstream [\#872](https://github.com/nerdvegas/rez/pull/872) ([alexxbb](https://github.com/alexxbb))
+
+**Closed issues:**
+
+- override git plugin config in package.py [\#871](https://github.com/nerdvegas/rez/issues/871)
+
+## 2.56.1 (2020-03-31)
+[Source](https://github.com/nerdvegas/rez/tree/2.56.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.56.0...2.56.1)
+
+**Merged pull requests:**
+
+- Log during pip install [\#867](https://github.com/nerdvegas/rez/pull/867) ([j0yu](https://github.com/j0yu))
+
+## 2.56.0 (2020-03-31)
+[Source](https://github.com/nerdvegas/rez/tree/2.56.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.55.0...2.56.0)
+
+**Merged pull requests:**
+
+- pip install path remap [\#866](https://github.com/nerdvegas/rez/pull/866) ([j0yu](https://github.com/j0yu))
+
+**Closed issues:**
+
+- rez-pip - no case for ../../include/... file [\#861](https://github.com/nerdvegas/rez/issues/861)
+
+## 2.55.0 (2020-03-21)
+[Source](https://github.com/nerdvegas/rez/tree/2.55.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.54.0...2.55.0)
+
+**Merged pull requests:**
+
+- Fixed bug in test variant selection [\#842](https://github.com/nerdvegas/rez/pull/842) ([nerdvegas](https://github.com/nerdvegas))
+- pre_test_commands [\#844](https://github.com/nerdvegas/rez/pull/844) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- tests "on_variants" not working as expected in some cases [\#841](https://github.com/nerdvegas/rez/issues/841)
+- pre_test_commands [\#843](https://github.com/nerdvegas/rez/issues/843)
+
+## 2.54.0 (2020-02-20)
+[Source](https://github.com/nerdvegas/rez/tree/2.54.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.53.1...2.54.0)
+
+**Merged pull requests:**
+
+- Install as package part2 [\#845](https://github.com/nerdvegas/rez/pull/845) ([nerdvegas](https://github.com/nerdvegas))
+- Allow absolute path for build directory [\#853](https://github.com/nerdvegas/rez/pull/853) ([joehigham-bss](https://github.com/joehigham-bss))
+- [rez-pip] Fix for ptvsd install [\#855](https://github.com/nerdvegas/rez/pull/855) ([j0yu](https://github.com/j0yu))
+
+**Closed issues:**
+
+- "rez-pip -i ptvsd" produces bad package [\#821](https://github.com/nerdvegas/rez/issues/821)
+
+## 2.53.1 (2020-02-12)
+[Source](https://github.com/nerdvegas/rez/tree/2.53.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.53.0...2.53.1)
+
+**Notes**
+
+Misc Python-3 related issues.
+
+**Merged pull requests:**
+
+- PR: Fix "StringIO" imports and accesses. [\#850](https://github.com/nerdvegas/rez/pull/850) ([KelSolaar](https://github.com/KelSolaar))
+- PR: Use "QtCompat" to handle "QHeaderView" incompatibilities and fix broken "resolve" button in "rez-gui". [\#851](https://github.com/nerdvegas/rez/pull/851) ([KelSolaar](https://github.com/KelSolaar))
+
+**Closed issues:**
+
+- "ImportError" exception raised while using "rez-gui" in Python 3. [\#848](https://github.com/nerdvegas/rez/issues/848)
+- "AttributeError" exception raised when using "rez-gui" Package Browser with Pyside2 . [\#849](https://github.com/nerdvegas/rez/issues/849)
+
+## 2.53.0 (2020-02-04)
+[Source](https://github.com/nerdvegas/rez/tree/2.53.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.52.2...2.53.0)
+
+**Merged pull requests:**
+
+- [Feature] Add rez-pip extra args passthrough [\#827](https://github.com/nerdvegas/rez/pull/827) ([lambdaclan](https://github.com/lambdaclan))
+
+**Closed issues:**
+
+- rez-pip creates .pyc files by default [\#816](https://github.com/nerdvegas/rez/issues/816)
+
+## 2.52.2 (2020-01-31)
+[Source](https://github.com/nerdvegas/rez/tree/2.52.2) | [Diff](https://github.com/nerdvegas/rez/compare/2.52.1...2.52.2)
+
+**Merged pull requests:**
+
+- deprecate trailing underscored sourcefiles [\#839](https://github.com/nerdvegas/rez/pull/839) ([nerdvegas](https://github.com/nerdvegas))
+- Minor pr3 fixes [\#840](https://github.com/nerdvegas/rez/pull/840) ([nerdvegas](https://github.com/nerdvegas))
+
+## 2.52.1 (2020-01-21)
+[Source](https://github.com/nerdvegas/rez/tree/2.52.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.52.0...2.52.1)
+
+**Merged pull requests:**
+
+- added new env vars - REZ_SHELL_INIT_TIMESTAMP, REZ_SHELL_INTERACTIVE [\#834](https://github.com/nerdvegas/rez/pull/834) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- add env-var to record shell init time [\#833](https://github.com/nerdvegas/rez/issues/833)
+
+## 2.52.0 (2020-01-18)
+[Source](https://github.com/nerdvegas/rez/tree/2.52.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.51.0...2.52.0)
+
+**Notes**
+
+Adds a new [pre_build_commands](https://github.com/nerdvegas/rez/wiki/Package-Commands#pre-build-commands)
+package.py attribute, for adding runtime build configuration.
+
+**Merged pull requests:**
+
+- Rep002 pre build commands [\#825](https://github.com/nerdvegas/rez/pull/825) ([nerdvegas](https://github.com/nerdvegas))
+
+## 2.51.0 (2020-01-18)
+[Source](https://github.com/nerdvegas/rez/tree/2.51.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.50.0...2.51.0)
+
+**Notes**
+
+This release goes a large way to implementing [REP-001](https://github.com/nerdvegas/rez/issues/665)
+
+Includes:
+- Pre-install/release running of package tests;
+- New rez-test `--inplace` option;
+- Correct iteration of tests over variants (variant iteration did not previously exist)
+
+Still to do:
+- rez-test `--interactive` option;
+- rez-test 'development' mode.
+
+**Merged pull requests:**
+
+- Rep001 1 (rez-test improvements) [\#807](https://github.com/nerdvegas/rez/pull/807) ([nerdvegas](https://github.com/nerdvegas))
+- Rep001 2 hooks [\#811](https://github.com/nerdvegas/rez/pull/811) ([nerdvegas](https://github.com/nerdvegas))
+
+## 2.50.0 (2019-12-12)
+[Source](https://github.com/nerdvegas/rez/tree/2.50.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.49.0...2.50.0)
+
+**Merged pull requests:**
+
+- removed odd case of _Bound instantiation with Version [\#815](https://github.com/nerdvegas/rez/pull/815) ([nerdvegas](https://github.com/nerdvegas))
+- memcached incompatibility fix [\#818](https://github.com/nerdvegas/rez/pull/818) ([nerdvegas](https://github.com/nerdvegas))
+- Bug/819 enable colorization on windows [\#820](https://github.com/nerdvegas/rez/pull/820) ([instinct-vfx](https://github.com/instinct-vfx))
+
+**Closed issues:**
+
+- potential memcached client incompatibility [\#817](https://github.com/nerdvegas/rez/issues/817)
+- Remove hard prevention of colorization on windows [\#819](https://github.com/nerdvegas/rez/issues/819)
+
+## 2.49.0 (2019-12-05)
+[Source](https://github.com/nerdvegas/rez/tree/2.49.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.48.1...2.49.0)
+
+**Merged pull requests:**
+
+- Migrate rezgui.qt imports to Qt.py [\#804](https://github.com/nerdvegas/rez/pull/804) ([douglaslassance](https://github.com/douglaslassance))
+
+## 2.48.1 (2019-12-05)
+[Source](https://github.com/nerdvegas/rez/tree/2.48.1) | [Diff](https://github.com/nerdvegas/rez/compare/2.48.0...2.48.1)
+
+**Merged pull requests:**
+
+- Fixes #792 cmd empty echo [\#793](https://github.com/nerdvegas/rez/pull/793) ([bfloch](https://github.com/bfloch))
+
+**Closed issues:**
+
+- cmd handles empty echo incorrectly [\#792](https://github.com/nerdvegas/rez/issues/792)
+
+## 2.48.0 (2019-11-26)
+[Source](https://github.com/nerdvegas/rez/tree/2.48.0) | [Diff](https://github.com/nerdvegas/rez/compare/2.47.14...2.48.0)
+
+**Merged pull requests:**
+
+- rez.pip: Support python 2 executable on Windows (796) [\#798](https://github.com/nerdvegas/rez/pull/798) ([JeanChristopheMorinPerso](https://github.com/JeanChristopheMorinPerso))
+- Feature/add 'prefix' argument to rez-pip [\#802](https://github.com/nerdvegas/rez/pull/802) ([predat](https://github.com/predat))
+
+**Closed issues:**
+
+- find_pip_from_context failing on Windows platform [\#796](https://github.com/nerdvegas/rez/issues/796)
+
+## 2.47.14 (2019-11-13)
+[Source](https://github.com/nerdvegas/rez/tree/2.47.14) | [Diff](https://github.com/nerdvegas/rez/compare/2.47.13...2.47.14)
+
+**Notes**
+
+Several Windows CI improvements:
+* Base and Py docker images are only rebuilt if necessary;
+* Docker hub no longer requires a login to pull the image (meaning that tests now pass on forked PRs);
+* Rather than checking out the rez github repo in the image entrypoint, the existing checkout (done
+  by the workflow) is bind mounted instead.
+
+With these updates, tests are now passing on all platforms.
+
+**Known Issues**
+
+If the image is changed, there is a delay in the new image becoming available on docker hub (5-10 mins).
+If a separate push is made in this time, it can fail, as the Windows test expects to see the new image
+(which is tagged by commit).
+
+**Merged pull requests:**
+
+- Windows docker enhancements [\#794](https://github.com/nerdvegas/rez/pull/794) ([bfloch](https://github.com/bfloch))
+- Remove the login so that PR work at least for the non-image workflows. [\#795](https://github.com/nerdvegas/rez/pull/795) ([bfloch](https://github.com/bfloch))
+- Issue 800 windows ci use checkout [\#801](https://github.com/nerdvegas/rez/pull/801) ([nerdvegas](https://github.com/nerdvegas))
+
+**Closed issues:**
+
+- windows ci: Use Actions checkout [\#800](https://github.com/nerdvegas/rez/issues/800)
+
+## 2.47.13 (2019-11-08)
+[Source](https://github.com/nerdvegas/rez/tree/2.47.13) | [Diff](https://github.com/nerdvegas/rez/compare/2.47.12...2.47.13)
+
+**Notes**
+
+This release just makes some minor changes related to the CI tests. As well as the changes in the PR shown
+below, the following changes were also made:
+
+* 'Windows Docker' workflow was renamed 'Windows'
+* MacOS version used in workflow was changed from 10.14 to 'latest', as per Github's instructions (which were
+  emailed to me).
+
+**Merged pull requests:**
+
+- Updated actions badges in README [\#786](https://github.com/nerdvegas/rez/pull/786) ([j0yu](https://github.com/j0yu))
+
+**Closed issues:**
+
+- Fix README actions badges not showing current master status [\#785](https://github.com/nerdvegas/rez/issues/785)
+
 ## 2.47.12 (2019-11-06)
 [Source](https://github.com/nerdvegas/rez/tree/2.47.12) | [Diff](https://github.com/nerdvegas/rez/compare/2.47.11...2.47.12)
 
