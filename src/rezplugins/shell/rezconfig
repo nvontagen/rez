@@ -11,7 +11,7 @@ tcsh:
     prompt: '>'
 
 zsh:
-    prompt: '%'
+    prompt: '>'
 
 cmd:
     prompt: '$G'

@@ -3,6 +3,7 @@ Zsh shell
 """
 import os
 import os.path
+from rez.config import config
 from rez.shells import Shell
 from rez.utils.platform_ import platform_
 from rezplugins.shell.sh import SH
@@ -71,7 +72,14 @@ class Zsh(SH):
         )
 
     def _bind_interactive_rez(self):
-        super(Zsh, self)._bind_interactive_rez()
+        if config.set_prompt and self.settings.prompt:
+            self._addline(r'if [ -z "$REZ_STORED_PROMPT_SH" ]; then export REZ_STORED_PROMPT_SH="$PS1"; fi')
+            if config.prefix_prompt:
+                cmd = 'export PS1="%s $REZ_STORED_PROMPT_SH"'
+            else:
+                cmd = 'export PS1="$REZ_STORED_PROMPT_SH %s"'
+            self._addline(cmd % r"$REZ_ENV_PROMPT")
+
         completion = os.path.join(module_root_path, "completion", "complete.zsh")
         self.source(completion)
 
