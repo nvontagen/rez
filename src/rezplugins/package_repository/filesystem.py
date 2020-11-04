@@ -746,8 +746,9 @@ class FileSystemPackageRepository(PackageRepository):
         if dry_run:
             variant = _create_variant()
         else:
-            with self._lock_package(variant_name, variant_version):
-                variant = _create_variant()
+            # NAS - Lock package doesn't work on Qumulo network storage.
+            #with self._lock_package(variant_name, variant_version):
+            variant = _create_variant()
 
         return variant
 
