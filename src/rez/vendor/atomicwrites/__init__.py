@@ -35,7 +35,12 @@ if sys.platform != 'win32':
             # https://lists.apple.com/archives/darwin-dev/2005/Feb/msg00072.html
             # https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man2/fsync.2.html
             # https://github.com/untitaker/python-atomicwrites/issues/6
-            fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+
+            # NAS - This operation fails when building to Qumulo network storage on OSX.
+            try:
+                fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+            except IOError:
+                pass
 
     def _sync_directory(directory):
         # Ensure that filenames are written to disk
